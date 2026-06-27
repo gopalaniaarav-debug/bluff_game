@@ -1,0 +1,21 @@
+{
+  "name": "bluff-server",
+  "version": "1.0.0",
+  "description": "Bluff card game server",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node index.js",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.11.1",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "socket.io": "^4.8.1"
+  },
+  "devDependencies": {
+    "vitest": "^3.0.5"
+  }
+}

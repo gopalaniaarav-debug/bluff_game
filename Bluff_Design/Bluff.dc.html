@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    *{box-sizing:border-box;}
+    html,body{margin:0;padding:0;background:#0b1714;}
+    ::selection{background:#e7b94a;color:#0b1714;}
+    @keyframes dropIn{from{opacity:0;transform:translateY(-26px) scale(.9)}to{opacity:1;transform:none}}
+    @keyframes flipIn{from{transform:rotateY(180deg)}to{transform:rotateY(0deg)}}
+    @keyframes stampIn{0%{opacity:0;transform:scale(1.7) rotate(-7deg)}55%{opacity:1;transform:scale(.9) rotate(-4deg)}100%{opacity:1;transform:scale(1) rotate(-4deg)}}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+    @keyframes playToPile{to{opacity:0;transform:translateY(-250px) scale(.5)}}
+    @keyframes confettiFall{to{transform:translateY(112vh) rotate(720deg)}}
+    @keyframes softPulse{0%,100%{opacity:.45}50%{opacity:1}}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    @keyframes haloPulse{0%,100%{box-shadow:0 0 0 4px rgba(231,185,74,.5),0 0 26px rgba(231,185,74,.45)}50%{box-shadow:0 0 0 6px rgba(231,185,74,.85),0 0 44px rgba(231,185,74,.8)}}
+    @keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+    @keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+  </style>
+</helmet>
+
+<div style="display:flex; flex-direction:column; height:100vh; overflow:hidden; background:#0b1714; color:#f3ead4; font-family:'Space Grotesk',system-ui,sans-serif;">
+
+  <!-- ===== APP CHROME ===== -->
+  <header style="display:flex; align-items:center; gap:18px; padding:9px 18px; background:#0a130f; border-bottom:1px solid rgba(231,185,74,.16); flex:none; z-index:40;">
+    <div style="display:flex; align-items:baseline; gap:9px;">
+      <span style="font-family:'DM Serif Display',serif; font-size:22px; color:#f3ead4; letter-spacing:.5px;">Bluff</span>
+      <span style="font-family:'Space Mono',monospace; font-size:9px; letter-spacing:2.5px; color:#e7b94a; border:1px solid rgba(231,185,74,.4); padding:2px 6px; border-radius:4px;">BRSP EDITION</span>
+    </div>
+    <nav style="display:flex; gap:4px; margin-left:auto; flex-wrap:wrap;">
+      <sc-for list="{{ navItems }}" as="n" hint-placeholder-count="8">
+        <button style="{{ n.style }}" onClick="{{ n.onClick }}">{{ n.label }}</button>
+      </sc-for>
+    </nav>
+  </header>
+
+  <!-- ===== STAGE ===== -->
+  <main style="flex:1; position:relative; overflow:hidden;">
+
+    <!-- ============ LANDING ============ -->
+    <sc-if value="{{ isLanding }}" hint-placeholder-val="{{ true }}">
+      <div style="position:absolute; inset:0; overflow:auto; background:radial-gradient(120% 90% at 50% -10%, #16382b 0%, #0c1d17 55%, #091410 100%); display:flex; flex-direction:column; align-items:center; justify-content:center; padding:40px 20px;">
+        <div style="position:absolute; top:0; left:0; right:0; height:1px; background:linear-gradient(90deg,transparent,rgba(231,185,74,.5),transparent);"></div>
+        <div style="display:flex; gap:14px; margin-bottom:6px; height:150px; align-items:flex-end;">
+          <div style="transform:rotate(-13deg) translateY(10px);"><dc-import name="Card" rank="A" suit="S" w="92" hint-size="92px,129px"></dc-import></div>
+          <div style="transform:rotate(-6deg) translateY(-2px);"><dc-import name="Card" rank="K" suit="H" w="92" hint-size="92px,129px"></dc-import></div>
+          <div style="transform:rotate(0deg) translateY(-8px); z-index:2;"><dc-import name="Card" face-down="{{ true }}" w="92" hint-size="92px,129px"></dc-import></div>
+          <div style="transform:rotate(6deg) translateY(-2px);"><dc-import name="Card" rank="Q" suit="D" w="92" hint-size="92px,129px"></dc-import></div>
+          <div style="transform:rotate(13deg) translateY(10px);"><dc-import name="Card" rank="J" suit="C" w="92" hint-size="92px,129px"></dc-import></div>
+        </div>
+        <h1 style="font-family:'DM Serif Display',serif; font-size:84px; margin:14px 0 2px; color:#f6eed7; line-height:.9; text-shadow:0 4px 24px rgba(0,0,0,.5);">Bluff</h1>
+        <p style="margin:0 0 30px; color:#b7c3b6; font-size:15px; max-width:420px; text-align:center;">Read the table. Bury the lie. Call it when you smell one. <span style="color:#e7b94a;">2&ndash;8 players, one room code.</span></p>
+
+        <div style="display:flex; gap:20px; flex-wrap:wrap; justify-content:center; align-items:stretch;">
+          <!-- Create -->
+          <div style="width:300px; background:linear-gradient(170deg,#123127,#0d241c); border:1px solid rgba(231,185,74,.22); border-radius:18px; padding:24px; display:flex; flex-direction:column; gap:14px;">
+            <div style="font-family:'DM Serif Display',serif; font-size:24px; color:#f3ead4;">Host a table</div>
+            <div style="font-size:13px; color:#9fb0a3;">Spin up a private room and share the code. You deal.</div>
+            <div style="display:flex; flex-direction:column; gap:7px; margin-top:2px;">
+              <label style="font-size:11px; letter-spacing:1px; text-transform:uppercase; color:#8fa094;">Your name</label>
+              <input value="{{ name }}" onInput="{{ onName }}" maxlength="14" style="background:#0a1813; border:1px solid rgba(231,185,74,.25); color:#f3ead4; border-radius:9px; padding:10px 12px; font-family:'Space Grotesk',sans-serif; font-size:15px; outline:none;">
+            </div>
+            <div style="display:flex; flex-direction:column; gap:7px;">
+              <label style="font-size:11px; letter-spacing:1px; text-transform:uppercase; color:#8fa094;">Your color</label>
+              <div style="display:flex; gap:9px;">
+                <sc-for list="{{ swatches }}" as="sw" hint-placeholder-count="6">
+                  <button onClick="{{ sw.onClick }}" style="{{ sw.style }}"></button>
+                </sc-for>
+              </div>
+            </div>
+            <button onClick="{{ goLobby }}" style="margin-top:6px; background:linear-gradient(180deg,#f0c659,#dca233); color:#2a1c05; border:none; border-radius:11px; padding:14px; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:16px; cursor:pointer; box-shadow:0 6px 16px rgba(231,185,74,.3), inset 0 1px 0 rgba(255,255,255,.4);">Create room &rarr;</button>
+          </div>
+          <!-- Join -->
+          <div style="width:300px; background:#0d211a; border:1px solid rgba(255,255,255,.07); border-radius:18px; padding:24px; display:flex; flex-direction:column; gap:14px;">
+            <div style="font-family:'DM Serif Display',serif; font-size:24px; color:#f3ead4;">Join a table</div>
+            <div style="font-size:13px; color:#9fb0a3;">Got a 4-letter code from a friend? Drop in.</div>
+            <div style="display:flex; flex-direction:column; gap:7px; margin-top:2px;">
+              <label style="font-size:11px; letter-spacing:1px; text-transform:uppercase; color:#8fa094;">Room code</label>
+              <input value="{{ code }}" onInput="{{ onCode }}" placeholder="BRSP" maxlength="4" style="background:#0a1813; border:1px solid rgba(231,185,74,.25); color:#e7b94a; border-radius:9px; padding:12px 14px; font-family:'Space Mono',monospace; font-size:30px; letter-spacing:14px; text-align:center; text-transform:uppercase; outline:none;">
+            </div>
+            <div style="flex:1;"></div>
+            <button onClick="{{ goLobby }}" style="background:transparent; color:#f3ead4; border:1.5px solid rgba(231,185,74,.5); border-radius:11px; padding:14px; font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:16px; cursor:pointer;">Join room</button>
+          </div>
+        </div>
+        <div style="margin-top:34px; font-family:'Space Mono',monospace; font-size:11px; color:#5e6f63; letter-spacing:1px;">NO APP &middot; NO ACCOUNT &middot; WORKS ON ANY PHONE BROWSER</div>
+      </div>
+    </sc-if>
+
+    <!-- ============ LOBBY ============ -->
+    <sc-if value="{{ isLobby }}" hint-placeholder-val="{{ true }}">
+      <div style="position:absolute; inset:0; overflow:auto; background:radial-gradient(120% 90% at 50% -10%, #16382b 0%, #0c1d17 60%); padding:32px 20px; display:flex; flex-direction:column; align-items:center;">
+        <div style="width:100%; max-width:880px;">
+          <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; margin-bottom:24px;">
+            <div>
+              <div style="font-size:12px; letter-spacing:2px; text-transform:uppercase; color:#8fa094; margin-bottom:6px;">Room code &middot; share to invite</div>
+              <button onClick="{{ copyCode }}" style="display:flex; align-items:center; gap:14px; background:#0d211a; border:1px solid rgba(231,185,74,.3); border-radius:14px; padding:12px 18px; cursor:pointer;">
+                <span style="font-family:'Space Mono',monospace; font-size:42px; font-weight:700; letter-spacing:12px; color:#e7b94a;">BRSP</span>
+                <span style="font-size:11px; color:#9fb0a3; border-left:1px solid rgba(255,255,255,.12); padding-left:14px; text-align:left; line-height:1.4;">tap to<br>copy link</span>
+              </button>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-family:'DM Serif Display',serif; font-size:30px; color:#f3ead4;">The Lobby</div>
+              <div style="font-size:13px; color:#9fb0a3;">{{ lobbyCountText }}</div>
+            </div>
+          </div>
+
+          <!-- waiting banner -->
+          <sc-if value="{{ lobbyWaiting }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex; align-items:center; gap:12px; background:rgba(231,185,74,.08); border:1px solid rgba(231,185,74,.3); border-radius:12px; padding:12px 16px; margin-bottom:18px;">
+              <div style="width:10px; height:10px; border-radius:50%; background:#e7b94a; animation:softPulse 1.2s infinite;"></div>
+              <div style="font-size:14px; color:#f0e2c2;">Waiting for at least one more player &mdash; you need <b>2</b> to deal. Share the code above.</div>
+            </div>
+          </sc-if>
+
+          <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:12px;">
+            <sc-for list="{{ lobbySlots }}" as="p" hint-placeholder-count="8">
+              <div style="{{ p.style }}">
+                <sc-if value="{{ p.filled }}" hint-placeholder-val="{{ true }}">
+                  <div style="display:flex; flex-direction:column; align-items:center; gap:9px;">
+                    <div style="position:relative;">
+                      <div style="width:54px; height:54px; border-radius:50%; background:{{ p.color }}; display:flex; align-items:center; justify-content:center; font-family:'DM Serif Display',serif; font-size:24px; color:#10110c; box-shadow:0 4px 12px rgba(0,0,0,.35);">{{ p.initial }}</div>
+                      <sc-if value="{{ p.isHost }}" hint-placeholder-val="{{ true }}"><div style="position:absolute; top:-8px; right:-8px; background:#e7b94a; color:#2a1c05; font-size:9px; font-weight:700; padding:2px 5px; border-radius:6px; font-family:'Space Mono',monospace;">HOST</div></sc-if>
+                    </div>
+                    <div style="font-size:14px; font-weight:600; color:#f3ead4;">{{ p.name }}</div>
+                    <div style="font-size:11px; color:{{ p.statusColor }};">{{ p.status }}</div>
+                  </div>
+                </sc-if>
+                <sc-if value="{{ p.empty }}" hint-placeholder-val="{{ true }}">
+                  <div style="display:flex; flex-direction:column; align-items:center; gap:9px; opacity:.5;">
+                    <div style="width:54px; height:54px; border-radius:50%; border:2px dashed rgba(255,255,255,.25); display:flex; align-items:center; justify-content:center; color:#6f8076; font-size:22px;">+</div>
+                    <div style="font-size:12px; color:#6f8076;">Open seat</div>
+                  </div>
+                </sc-if>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="display:flex; align-items:center; gap:14px; margin-top:26px; flex-wrap:wrap;">
+            <button onClick="{{ startGame }}" style="{{ startStyle }}">{{ startLabel }}</button>
+            <button onClick="{{ addPlayer }}" style="background:transparent; border:1.5px solid rgba(231,185,74,.4); color:#f3ead4; border-radius:11px; padding:13px 18px; font-weight:600; font-family:'Space Grotesk',sans-serif; cursor:pointer;">+ Simulate a player joining</button>
+            <div style="margin-left:auto; display:flex; align-items:center; gap:18px; color:#9fb0a3; font-size:13px;">
+              <span>Host controls:</span>
+              <span style="display:flex; align-items:center; gap:6px;"><span style="width:34px; height:18px; border-radius:10px; background:#e7b94a; position:relative;"><span style="position:absolute; top:2px; right:2px; width:14px; height:14px; border-radius:50%; background:#10110c;"></span></span> Sudden death</span>
+              <span style="display:flex; align-items:center; gap:6px;"><span style="width:34px; height:18px; border-radius:10px; background:#23332b; position:relative;"><span style="position:absolute; top:2px; left:2px; width:14px; height:14px; border-radius:50%; background:#6f8076;"></span></span> Spectators</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ============ GAME TABLE — DESKTOP ============ -->
+    <sc-if value="{{ isTable }}" hint-placeholder-val="{{ true }}">
+      <div style="position:absolute; inset:0; display:flex; flex-direction:column; background:#0a1812;">
+        <div style="position:absolute; inset:0; background:radial-gradient(70% 55% at 50% 40%, #1a4d39 0%, #103021 70%, #0a1812 100%);"></div>
+
+        <!-- status strip -->
+        <div style="flex:none; display:flex; flex-direction:column; align-items:center; gap:3px; padding:12px 0 4px; position:relative; z-index:20;">
+          <div style="{{ banner.pill }}">{{ banner.text }}</div>
+          <div style="font-size:12px; color:#a9bbae;">{{ banner.sub }}</div>
+        </div>
+        <!-- felt region -->
+        <div style="position:relative; flex:1; min-height:0;">
+
+          <!-- the oval table -->
+          <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:min(72%,820px); height:min(64%,440px); border-radius:50%; background:radial-gradient(circle at 50% 42%, #1f5a41, #134029 70%, #0e3322); box-shadow:inset 0 0 70px rgba(0,0,0,.45), 0 24px 60px rgba(0,0,0,.5); border:14px solid #1a120c; outline:2px solid rgba(231,185,74,.35);">
+            <div style="position:absolute; inset:14px; border-radius:50%; border:1px dashed rgba(231,185,74,.18);"></div>
+            <!-- center cluster -->
+            <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); display:flex; flex-direction:column; align-items:center; gap:14px; width:340px;">
+              <div style="font-size:12px; color:#bfe0ce; opacity:.85; font-family:'Space Mono',monospace; letter-spacing:.5px;">Dana played 2 &middot; claims <b style="color:#f0e2c2;">Sevens</b></div>
+              <div style="display:flex; align-items:center; gap:18px;">
+                <!-- pile -->
+                <div style="position:relative; width:84px; height:118px;">
+                  <div style="position:absolute; top:0; left:0; transform:rotate(-7deg);"><dc-import name="Card" face-down="{{ true }}" w="84" hint-size="84px,118px"></dc-import></div>
+                  <div style="position:absolute; top:2px; left:3px; transform:rotate(3deg);"><dc-import name="Card" face-down="{{ true }}" w="84" hint-size="84px,118px"></dc-import></div>
+                  <div style="position:absolute; top:0; left:6px; transform:rotate(-1deg);"><dc-import name="Card" face-down="{{ true }}" w="84" hint-size="84px,118px"></dc-import></div>
+                  <div style="position:absolute; bottom:-10px; right:-12px; background:#0a130f; color:#e7b94a; border:1px solid rgba(231,185,74,.5); border-radius:20px; padding:3px 9px; font-family:'Space Mono',monospace; font-size:13px; font-weight:700;">{{ pile }}</div>
+                </div>
+                <!-- legal rank token -->
+                <div style="display:flex; flex-direction:column; align-items:center; background:linear-gradient(180deg,#f0c659,#d39f31); color:#2a1c05; border-radius:14px; padding:10px 20px; box-shadow:0 8px 20px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.4);">
+                  <span style="font-size:10px; letter-spacing:1.5px; text-transform:uppercase; opacity:.7;">Legal rank</span>
+                  <span style="font-family:'DM Serif Display',serif; font-size:30px; line-height:1;">Sevens</span>
+                  <span style="font-size:11px; opacity:.7;">match it &mdash; or lie</span>
+                </div>
+              </div>
+              <!-- call bluff -->
+              <button onClick="{{ callBluff }}" style="margin-top:2px; background:linear-gradient(180deg,#e8604c,#cc3a28); color:#fff; border:none; border-radius:12px; padding:12px 26px; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:16px; letter-spacing:.5px; cursor:pointer; box-shadow:0 8px 22px rgba(204,58,40,.5), inset 0 1px 0 rgba(255,255,255,.25); animation:floaty 3s ease-in-out infinite;">Call Bluff!</button>
+            </div>
+          </div>
+
+          <!-- turn halo -->
+          <div style="{{ turnHalo }}"></div>
+
+          <!-- opponents -->
+          <sc-for list="{{ opponents }}" as="o" hint-placeholder-count="5">
+            <div style="{{ o.seat }}">
+              <div style="position:relative; display:flex; flex-direction:column; align-items:center; gap:6px;">
+                <sc-if value="{{ o.tag }}" hint-placeholder-val="x"><div style="position:absolute; top:-22px; white-space:nowrap; background:#0a130f; border:1px solid rgba(231,185,74,.4); color:#e7b94a; font-size:10px; font-family:'Space Mono',monospace; padding:2px 7px; border-radius:8px;">{{ o.tag }}</div></sc-if>
+                <div style="display:flex; align-items:center; gap:9px;">
+                  <div style="width:56px; height:56px; border-radius:50%; background:{{ o.color }}; display:flex; align-items:center; justify-content:center; font-family:'DM Serif Display',serif; font-size:24px; color:#10110c; box-shadow:{{ o.glow }};">{{ o.initial }}</div>
+                  <div style="position:relative; width:26px; height:36px;">
+                    <div style="position:absolute; left:0; top:0; transform:rotate(-9deg);"><dc-import name="Card" face-down="{{ true }}" w="26" hint-size="26px,36px"></dc-import></div>
+                    <div style="position:absolute; left:5px; top:-1px; transform:rotate(7deg);"><dc-import name="Card" face-down="{{ true }}" w="26" hint-size="26px,36px"></dc-import></div>
+                    <div style="position:absolute; bottom:-8px; right:-10px; background:#0a130f; color:#f3ead4; border-radius:10px; padding:1px 6px; font-family:'Space Mono',monospace; font-size:11px; font-weight:700;">{{ o.count }}</div>
+                  </div>
+                </div>
+                <div style="font-size:13px; font-weight:600; color:#f3ead4;">{{ o.name }}</div>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+
+        <!-- control deck -->
+        <div style="flex:none; position:relative; background:linear-gradient(180deg,rgba(8,16,12,.2),#0a130f 60%); border-top:1px solid rgba(231,185,74,.18); padding:0 22px 16px;">
+          <!-- hand -->
+          <div style="display:flex; justify-content:center; align-items:flex-end; height:120px; margin-top:-30px; position:relative; z-index:5;">
+            <sc-for list="{{ hand }}" as="c" hint-placeholder-count="7">
+              <div style="{{ c.wrap }}" onClick="{{ c.onClick }}">
+                <dc-import name="Card" rank="{{ c.r }}" suit="{{ c.s }}" selected="{{ c.sel }}" w="92" hint-size="92px,129px"></dc-import>
+              </div>
+            </sc-for>
+          </div>
+          <!-- action row -->
+          <div style="display:flex; align-items:center; gap:14px; margin-top:8px;">
+            <div style="font-size:11px; letter-spacing:1px; text-transform:uppercase; color:#8fa094;">Claim&nbsp;rank</div>
+            <div style="display:flex; gap:6px; overflow-x:auto; padding:2px; flex:1;">
+              <sc-for list="{{ rankChips }}" as="r" hint-placeholder-count="13">
+                <button onClick="{{ r.onClick }}" style="{{ r.style }}">{{ r.r }}</button>
+              </sc-for>
+            </div>
+            <button onClick="{{ playCards }}" style="{{ playStyle }}">{{ playLabel }}</button>
+            <button onClick="{{ nextTurn }}" title="demo" style="background:transparent; border:1px solid rgba(255,255,255,.15); color:#9fb0a3; border-radius:10px; padding:11px 13px; font-size:12px; cursor:pointer; white-space:nowrap;">&#9654; Next turn</button>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ============ GAME TABLE — MOBILE ============ -->
+    <sc-if value="{{ isMobile }}" hint-placeholder-val="{{ true }}">
+      <div style="position:absolute; inset:0; overflow:auto; background:repeating-linear-gradient(45deg,#0c1a14,#0c1a14 22px,#0b1813 22px,#0b1813 44px); display:flex; align-items:center; justify-content:center; padding:24px;">
+        <div style="width:392px; height:760px; max-height:92%; background:#0a130f; border-radius:46px; border:11px solid #07100c; box-shadow:0 30px 70px rgba(0,0,0,.6), inset 0 0 0 1px rgba(231,185,74,.2); position:relative; overflow:hidden; display:flex; flex-direction:column;">
+          <div style="position:absolute; top:0; left:50%; transform:translateX(-50%); width:130px; height:26px; background:#07100c; border-radius:0 0 16px 16px; z-index:30;"></div>
+          <!-- m header -->
+          <div style="padding:16px 18px 10px; display:flex; align-items:center; justify-content:space-between;">
+            <span style="font-family:'Space Mono',monospace; font-size:12px; color:#e7b94a;">BRSP</span>
+            <span style="font-family:'DM Serif Display',serif; font-size:18px;">Bluff</span>
+            <span style="font-size:11px; color:#8fa094;">Pile {{ pile }}</span>
+          </div>
+          <div style="margin:0 14px; background:linear-gradient(180deg,#f0c659,#d39f31); color:#2a1c05; border-radius:12px; text-align:center; padding:8px;">
+            <div style="font-size:9px; letter-spacing:1.5px; text-transform:uppercase; opacity:.7;">Your turn &middot; legal rank</div>
+            <div style="font-family:'DM Serif Display',serif; font-size:24px; line-height:1;">Sevens</div>
+          </div>
+          <!-- opponents strip -->
+          <div style="display:flex; gap:10px; overflow-x:auto; padding:14px 14px 6px;">
+            <sc-for list="{{ opponents }}" as="o" hint-placeholder-count="5">
+              <div style="flex:none; display:flex; flex-direction:column; align-items:center; gap:4px; min-width:58px; padding:6px; border-radius:12px; background:{{ o.mglow }};">
+                <div style="width:42px; height:42px; border-radius:50%; background:{{ o.color }}; display:flex; align-items:center; justify-content:center; font-family:'DM Serif Display',serif; font-size:18px; color:#10110c;">{{ o.initial }}</div>
+                <div style="font-size:11px; color:#f3ead4;">{{ o.name }}</div>
+                <div style="font-size:10px; font-family:'Space Mono',monospace; color:#9fb0a3;">{{ o.count }} cards</div>
+              </div>
+            </sc-for>
+          </div>
+          <!-- m pile -->
+          <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px;">
+            <div style="position:relative; width:80px; height:112px;">
+              <div style="position:absolute; top:0; left:0; transform:rotate(-6deg);"><dc-import name="Card" face-down="{{ true }}" w="80" hint-size="80px,112px"></dc-import></div>
+              <div style="position:absolute; top:0; left:5px; transform:rotate(4deg);"><dc-import name="Card" face-down="{{ true }}" w="80" hint-size="80px,112px"></dc-import></div>
+            </div>
+            <div style="font-family:'Space Mono',monospace; font-size:12px; color:#a9bbae;">Dana claims Sevens</div>
+          </div>
+          <!-- m hand -->
+          <div style="display:flex; justify-content:center; align-items:flex-end; height:96px;">
+            <sc-for list="{{ handMobile }}" as="c" hint-placeholder-count="7">
+              <div style="{{ c.wrap }}" onClick="{{ c.onClick }}"><dc-import name="Card" rank="{{ c.r }}" suit="{{ c.s }}" selected="{{ c.sel }}" w="64" hint-size="64px,90px"></dc-import></div>
+            </sc-for>
+          </div>
+          <!-- m controls -->
+          <div style="padding:8px 14px 22px; display:flex; flex-direction:column; gap:8px;">
+            <div style="display:flex; gap:6px; overflow-x:auto;">
+              <sc-for list="{{ rankChips }}" as="r" hint-placeholder-count="13">
+                <button onClick="{{ r.onClick }}" style="{{ r.mstyle }}">{{ r.r }}</button>
+              </sc-for>
+            </div>
+            <div style="display:flex; gap:8px;">
+              <button onClick="{{ playCards }}" style="{{ playStyleMobile }}">{{ playLabel }}</button>
+              <button onClick="{{ callBluff }}" style="flex:none; background:linear-gradient(180deg,#e8604c,#cc3a28); color:#fff; border:none; border-radius:13px; padding:15px 18px; font-weight:700; font-size:15px; cursor:pointer; min-height:52px;">Bluff!</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ============ BLUFF REVEAL ============ -->
+    <sc-if value="{{ isReveal }}" hint-placeholder-val="{{ true }}">
+      <div style="position:absolute; inset:0; overflow:hidden; background:radial-gradient(70% 60% at 50% 40%, #14271f, #0a130f 80%); display:flex; align-items:center; justify-content:center;">
+        <div style="position:absolute; top:16px; right:16px; z-index:30; display:flex; gap:6px; background:#0a130f; border:1px solid rgba(255,255,255,.12); border-radius:10px; padding:5px;">
+          <span style="font-size:11px; color:#8fa094; align-self:center; padding:0 6px;">demo outcome:</span>
+          <button onClick="{{ setLie }}" style="{{ lieBtn }}">Lie</button>
+          <button onClick="{{ setTrue }}" style="{{ trueBtn }}">Truth</button>
+          <button onClick="{{ replay }}" style="background:transparent; border:1px solid rgba(231,185,74,.4); color:#e7b94a; border-radius:7px; padding:6px 11px; font-size:12px; cursor:pointer;">&#8635; Replay</button>
+        </div>
+
+        <sc-if value="{{ revealMounted }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex; flex-direction:column; align-items:center; gap:30px; perspective:1400px; z-index:5;">
+            <div style="text-align:center; animation:dropIn .5s cubic-bezier(.2,.9,.3,1.25) both;">
+              <div style="font-size:13px; letter-spacing:3px; text-transform:uppercase; color:#a9bbae;">{{ rv.caller }} called bluff on {{ rv.accused }}</div>
+              <div style="font-family:'DM Serif Display',serif; font-size:30px; color:#f3ead4; margin-top:4px;">Claim was &ldquo;{{ rv.claim }}&rdquo; &mdash; let&rsquo;s see&hellip;</div>
+            </div>
+            <div style="display:flex; gap:22px;">
+              <sc-for list="{{ rv.cards }}" as="rc" hint-placeholder-count="2">
+                <div style="position:relative; width:120px; height:168px; transform-style:preserve-3d; animation:flipIn .55s cubic-bezier(.45,.05,.2,1) {{ rc.delay }} both;">
+                  <div style="position:absolute; inset:0; backface-visibility:hidden; transform:rotateY(0deg);"><dc-import name="Card" rank="{{ rc.r }}" suit="{{ rc.s }}" w="120" hint-size="120px,168px"></dc-import></div>
+                  <div style="position:absolute; inset:0; backface-visibility:hidden; transform:rotateY(180deg);"><dc-import name="Card" face-down="{{ true }}" w="120" hint-size="120px,168px"></dc-import></div>
+                </div>
+              </sc-for>
+            </div>
+            <div style="text-align:center; animation:stampIn .5s cubic-bezier(.2,1.5,.4,1) 1.3s both;">
+              <div style="display:inline-block; font-family:'DM Serif Display',serif; font-size:62px; line-height:1; color:{{ rv.color }}; border:5px solid {{ rv.color }}; border-radius:16px; padding:6px 28px; transform:rotate(-4deg); text-transform:uppercase; box-shadow:0 10px 30px rgba(0,0,0,.4);">{{ rv.title }}</div>
+              <div style="margin-top:16px; font-size:17px; color:#f0e2c2;">{{ rv.sub }} <b style="color:{{ rv.loserColor }};">{{ rv.pickup }}</b></div>
+            </div>
+            <button onClick="{{ revealDone }}" style="animation:fadeUp .4s 2.5s both; margin-top:6px; background:transparent; border:1.5px solid rgba(231,185,74,.5); color:#f3ead4; border-radius:11px; padding:12px 30px; font-weight:600; font-size:15px; cursor:pointer;">Continue &rarr;</button>
+          </div>
+          <!-- transferring pile -->
+          <div style="{{ pileStyle }}">
+            <div style="position:absolute; top:0; left:0; transform:rotate(-7deg);"><dc-import name="Card" face-down="{{ true }}" w="66" hint-size="66px,92px"></dc-import></div>
+            <div style="position:absolute; top:0; left:5px; transform:rotate(5deg);"><dc-import name="Card" face-down="{{ true }}" w="66" hint-size="66px,92px"></dc-import></div>
+            <div style="position:absolute; bottom:-12px; right:-14px; background:#0a130f; color:#e7b94a; border:1px solid rgba(231,185,74,.5); border-radius:16px; padding:2px 9px; font-family:'Space Mono',monospace; font-size:13px;">{{ pile }}</div>
+          </div>
+        </sc-if>
+      </div>
+    </sc-if>
+
+    <!-- ============ WIN ============ -->
+    <sc-if value="{{ isWin }}" hint-placeholder-val="{{ true }}">
+      <div style="position:absolute; inset:0; overflow:hidden; background:radial-gradient(80% 70% at 50% 30%, #1a4a35, #0a1812 75%); display:flex; flex-direction:column; align-items:center; justify-content:center; padding:24px;">
+        <sc-for list="{{ confetti }}" as="cf" hint-placeholder-count="40">
+          <div style="{{ cf.style }}"></div>
+        </sc-for>
+        <div style="position:relative; z-index:5; display:flex; flex-direction:column; align-items:center; text-align:center;">
+          <div style="width:96px; height:96px; border-radius:50%; background:linear-gradient(180deg,#f0c659,#d39f31); display:flex; align-items:center; justify-content:center; font-family:'DM Serif Display',serif; font-size:44px; color:#3a2705; box-shadow:0 0 0 6px rgba(231,185,74,.25), 0 14px 36px rgba(0,0,0,.5); animation:floaty 3s ease-in-out infinite;">M</div>
+          <div style="font-size:13px; letter-spacing:4px; text-transform:uppercase; color:#e7b94a; margin-top:18px;">Last one holding nerve</div>
+          <div style="font-family:'DM Serif Display',serif; font-size:72px; line-height:1; color:#f6eed7; margin:4px 0 2px;">Marco wins</div>
+          <div style="font-size:15px; color:#b7c3b6;">Emptied his hand without getting caught. Cold.</div>
+
+          <div style="margin-top:28px; width:360px; background:rgba(10,19,15,.7); border:1px solid rgba(231,185,74,.2); border-radius:14px; overflow:hidden;">
+            <sc-for list="{{ standings }}" as="s" hint-placeholder-count="6">
+              <div style="{{ s.row }}">
+                <span style="width:22px; font-family:'Space Mono',monospace; color:#8fa094;">{{ s.place }}</span>
+                <span style="width:26px; height:26px; border-radius:50%; background:{{ s.color }}; display:inline-flex; align-items:center; justify-content:center; font-family:'DM Serif Display',serif; font-size:13px; color:#10110c;">{{ s.initial }}</span>
+                <span style="flex:1; text-align:left; font-weight:600;">{{ s.name }}</span>
+                <span style="font-family:'Space Mono',monospace; font-size:12px; color:#9fb0a3;">{{ s.cards }}</span>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="display:flex; gap:12px; margin-top:26px;">
+            <button onClick="{{ goLobbyFromWin }}" style="background:linear-gradient(180deg,#f0c659,#dca233); color:#2a1c05; border:none; border-radius:11px; padding:13px 28px; font-weight:700; font-size:15px; cursor:pointer; box-shadow:0 6px 16px rgba(231,185,74,.3);">Rematch</button>
+            <button onClick="{{ goLandingFromWin }}" style="background:transparent; border:1.5px solid rgba(231,185,74,.45); color:#f3ead4; border-radius:11px; padding:13px 28px; font-weight:600; font-size:15px; cursor:pointer;">New room</button>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ============ EDGE STATES ============ -->
+    <sc-if value="{{ isEdge }}" hint-placeholder-val="{{ true }}">
+      <div style="position:absolute; inset:0; overflow:auto; background:#0c1a14; padding:32px; ">
+        <div style="max-width:980px; margin:0 auto;">
+          <h2 style="font-family:'DM Serif Display',serif; font-size:30px; margin:0 0 4px;">Edge &amp; empty states</h2>
+          <p style="color:#9fb0a3; margin:0 0 26px; font-size:14px;">The states that decide whether a flaky-wifi game night stays fun.</p>
+          <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(290px,1fr)); gap:18px;">
+
+            <div style="background:#0a130f; border:1px solid rgba(255,255,255,.08); border-radius:14px; padding:20px;">
+              <div style="font-size:11px; letter-spacing:1.5px; text-transform:uppercase; color:#e7b94a; margin-bottom:14px;">Player disconnect</div>
+              <div style="display:flex; align-items:center; gap:12px;">
+                <div style="position:relative; width:56px; height:56px;">
+                  <div style="width:56px; height:56px; border-radius:50%; background:#4aa3e0; opacity:.35; filter:grayscale(.6); display:flex; align-items:center; justify-content:center; font-family:'DM Serif Display',serif; font-size:24px; color:#10110c;">M</div>
+                  <div style="position:absolute; inset:-4px; border-radius:50%; border:3px solid rgba(231,185,74,.3); border-top-color:#e7b94a; animation:spin 1s linear infinite;"></div>
+                </div>
+                <div>
+                  <div style="font-weight:600;">Marco</div>
+                  <div style="font-size:12px; color:#e7b94a;">Reconnecting&hellip; 0:14</div>
+                </div>
+              </div>
+              <div style="margin-top:14px; display:flex; align-items:center; gap:10px; background:rgba(232,96,76,.12); border:1px solid rgba(232,96,76,.4); border-radius:10px; padding:10px 12px;">
+                <div style="width:8px; height:8px; border-radius:50%; background:#e8604c; animation:softPulse 1s infinite;"></div>
+                <div style="font-size:12px; color:#f4cdc4;">Hand held &middot; turn auto-skips in 30s</div>
+              </div>
+            </div>
+
+            <div style="background:#0a130f; border:1px solid rgba(255,255,255,.08); border-radius:14px; padding:20px;">
+              <div style="font-size:11px; letter-spacing:1.5px; text-transform:uppercase; color:#e7b94a; margin-bottom:14px;">Not enough players</div>
+              <div style="display:flex; gap:8px; margin-bottom:14px;">
+                <div style="width:44px; height:44px; border-radius:50%; background:#e7b94a; display:flex; align-items:center; justify-content:center; font-family:'DM Serif Display',serif; color:#10110c;">Y</div>
+                <div style="width:44px; height:44px; border-radius:50%; border:2px dashed rgba(255,255,255,.25); display:flex; align-items:center; justify-content:center; color:#6f8076;">+</div>
+              </div>
+              <button disabled style="width:100%; background:#1a261f; color:#5e6f63; border:none; border-radius:10px; padding:12px; font-weight:600; cursor:not-allowed;">Start game &middot; need 2</button>
+              <div style="font-size:12px; color:#9fb0a3; margin-top:10px;">Deal unlocks the moment a second player sits down.</div>
+            </div>
+
+            <div style="background:#0a130f; border:1px solid rgba(255,255,255,.08); border-radius:14px; padding:20px;">
+              <div style="font-size:11px; letter-spacing:1.5px; text-transform:uppercase; color:#e7b94a; margin-bottom:14px;">You&rsquo;re out (safe)</div>
+              <div style="display:flex; flex-direction:column; align-items:center; gap:8px; padding:8px 0;">
+                <div style="font-family:'DM Serif Display',serif; font-size:26px; color:#5bbf7a;">Hand empty &mdash; you&rsquo;re safe</div>
+                <div style="font-size:13px; color:#9fb0a3; text-align:center;">No cards left and nobody caught you. Sit back and spectate to the finish.</div>
+                <div style="margin-top:6px; display:flex; gap:6px;"><span style="width:8px;height:8px;border-radius:50%;background:#5bbf7a;"></span><span style="width:8px;height:8px;border-radius:50%;background:#5bbf7a;"></span><span style="width:8px;height:8px;border-radius:50%;background:#23332b;"></span></div>
+              </div>
+            </div>
+
+            <div style="background:#0a130f; border:1px solid rgba(255,255,255,.08); border-radius:14px; padding:20px;">
+              <div style="font-size:11px; letter-spacing:1.5px; text-transform:uppercase; color:#e7b94a; margin-bottom:14px;">Your network</div>
+              <div style="display:flex; align-items:center; gap:10px; background:rgba(231,185,74,.08); border:1px solid rgba(231,185,74,.3); border-radius:10px; padding:11px 12px;">
+                <div style="display:flex; gap:2px; align-items:flex-end; height:16px;"><span style="width:3px;height:6px;background:#e7b94a;"></span><span style="width:3px;height:10px;background:#e7b94a;"></span><span style="width:3px;height:14px;background:#5e6f63;"></span></div>
+                <div style="font-size:12px; color:#f0e2c2;">Connection unstable &mdash; we&rsquo;ll keep your turn open</div>
+              </div>
+              <div style="margin-top:10px; display:flex; align-items:center; gap:10px; background:rgba(91,191,122,.1); border:1px solid rgba(91,191,122,.35); border-radius:10px; padding:11px 12px;">
+                <div style="width:8px; height:8px; border-radius:50%; background:#5bbf7a;"></div>
+                <div style="font-size:12px; color:#cfe9d6;">Back online &middot; synced</div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ============ DESIGN SYSTEM ============ -->
+    <sc-if value="{{ isSystem }}" hint-placeholder-val="{{ true }}">
+      <div style="position:absolute; inset:0; overflow:auto; background:#0c1a14; padding:36px;">
+        <div style="max-width:1000px; margin:0 auto;">
+          <div style="font-size:12px; letter-spacing:3px; text-transform:uppercase; color:#e7b94a;">Bluff &middot; BRSP Edition</div>
+          <h2 style="font-family:'DM Serif Display',serif; font-size:40px; margin:6px 0 30px;">Felt &amp; Brass &mdash; design system</h2>
+
+          <div style="font-family:'Space Mono',monospace; font-size:12px; letter-spacing:1.5px; color:#8fa094; border-bottom:1px solid rgba(255,255,255,.1); padding-bottom:8px; margin-bottom:18px;">01 &nbsp; PALETTE</div>
+          <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:12px; margin-bottom:40px;">
+            <sc-for list="{{ palette }}" as="c" hint-placeholder-count="8">
+              <div style="background:#0a130f; border:1px solid rgba(255,255,255,.07); border-radius:12px; overflow:hidden;">
+                <div style="height:64px; background:{{ c.hex }};"></div>
+                <div style="padding:10px 12px;">
+                  <div style="font-size:13px; font-weight:600;">{{ c.name }}</div>
+                  <div style="font-family:'Space Mono',monospace; font-size:11px; color:#8fa094;">{{ c.hex }}</div>
+                  <div style="font-size:10px; color:#6f8076; margin-top:3px;">{{ c.use }}</div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="font-family:'Space Mono',monospace; font-size:12px; letter-spacing:1.5px; color:#8fa094; border-bottom:1px solid rgba(255,255,255,.1); padding-bottom:8px; margin-bottom:18px;">02 &nbsp; TYPE</div>
+          <div style="display:flex; flex-direction:column; gap:14px; margin-bottom:40px;">
+            <div style="display:flex; align-items:baseline; gap:18px; border-bottom:1px solid rgba(255,255,255,.06); padding-bottom:12px;"><span style="font-family:'Space Mono',monospace; font-size:11px; color:#8fa094; width:130px;">DM Serif Display</span><span style="font-family:'DM Serif Display',serif; font-size:40px;">Bluff &mdash; Sevens, Queens, Aces</span></div>
+            <div style="display:flex; align-items:baseline; gap:18px; border-bottom:1px solid rgba(255,255,255,.06); padding-bottom:12px;"><span style="font-family:'Space Mono',monospace; font-size:11px; color:#8fa094; width:130px;">Space Grotesk</span><span style="font-family:'Space Grotesk',sans-serif; font-size:22px;">Interface, buttons, names &amp; labels</span></div>
+            <div style="display:flex; align-items:baseline; gap:18px;"><span style="font-family:'Space Mono',monospace; font-size:11px; color:#8fa094; width:130px;">Space Mono</span><span style="font-family:'Space Mono',monospace; font-size:22px; letter-spacing:4px; color:#e7b94a;">BRSP &middot; 23 CARDS</span></div>
+          </div>
+
+          <div style="font-family:'Space Mono',monospace; font-size:12px; letter-spacing:1.5px; color:#8fa094; border-bottom:1px solid rgba(255,255,255,.1); padding-bottom:8px; margin-bottom:18px;">03 &nbsp; CARDS &middot; 4-COLOR DECK (colorblind-safe)</div>
+          <div style="display:flex; gap:16px; flex-wrap:wrap; align-items:center; margin-bottom:14px;">
+            <dc-import name="Card" rank="A" suit="S" w="96" hint-size="96px,134px"></dc-import>
+            <dc-import name="Card" rank="K" suit="H" w="96" hint-size="96px,134px"></dc-import>
+            <dc-import name="Card" rank="7" suit="D" w="96" hint-size="96px,134px"></dc-import>
+            <dc-import name="Card" rank="10" suit="C" w="96" hint-size="96px,134px"></dc-import>
+            <dc-import name="Card" face-down="{{ true }}" w="96" hint-size="96px,134px"></dc-import>
+          </div>
+          <div style="font-size:13px; color:#9fb0a3; margin-bottom:40px; max-width:640px;">Suits carry <b style="color:#f3ead4;">both</b> a unique hue and a unique shape, so they never depend on red/black alone: <span style="color:#28323a; background:#f3ead4; padding:1px 5px; border-radius:4px;">&#9824; slate</span> <span style="color:#d8453a; background:#f3ead4; padding:1px 5px; border-radius:4px;">&#9829; red</span> <span style="color:#2f6fd0; background:#f3ead4; padding:1px 5px; border-radius:4px;">&#9830; blue</span> <span style="color:#1f8a5b; background:#f3ead4; padding:1px 5px; border-radius:4px;">&#9827; green</span>. Big center rank reads from across the room / a TV cast.</div>
+
+          <div style="font-family:'Space Mono',monospace; font-size:12px; letter-spacing:1.5px; color:#8fa094; border-bottom:1px solid rgba(255,255,255,.1); padding-bottom:8px; margin-bottom:18px;">04 &nbsp; BUTTON STATES</div>
+          <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:14px; max-width:680px; margin-bottom:14px; text-align:center; font-size:11px; color:#8fa094;">
+            <div>Default</div><div>Hover</div><div>Active</div><div>Disabled</div>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:14px; max-width:680px; margin-bottom:40px;">
+            <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:14px;">
+              <div style="background:linear-gradient(180deg,#f0c659,#dca233); color:#2a1c05; border-radius:11px; padding:13px; font-weight:700; text-align:center; box-shadow:0 6px 16px rgba(231,185,74,.3), inset 0 1px 0 rgba(255,255,255,.4);">Play</div>
+              <div style="background:linear-gradient(180deg,#f6d06a,#e6ad3d); color:#2a1c05; border-radius:11px; padding:13px; font-weight:700; text-align:center; box-shadow:0 9px 22px rgba(231,185,74,.45);">Play</div>
+              <div style="background:linear-gradient(180deg,#d9a93a,#c2902b); color:#2a1c05; border-radius:11px; padding:13px; font-weight:700; text-align:center; transform:translateY(2px); box-shadow:inset 0 2px 6px rgba(0,0,0,.3);">Play</div>
+              <div style="background:#1a261f; color:#5e6f63; border-radius:11px; padding:13px; font-weight:700; text-align:center;">Play</div>
+            </div>
+            <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:14px;">
+              <div style="background:linear-gradient(180deg,#e8604c,#cc3a28); color:#fff; border-radius:11px; padding:13px; font-weight:700; text-align:center; box-shadow:0 6px 16px rgba(204,58,40,.4);">Bluff!</div>
+              <div style="background:linear-gradient(180deg,#f06f5b,#d8412e); color:#fff; border-radius:11px; padding:13px; font-weight:700; text-align:center; box-shadow:0 9px 24px rgba(204,58,40,.55);">Bluff!</div>
+              <div style="background:linear-gradient(180deg,#c2412f,#a83121); color:#fff; border-radius:11px; padding:13px; font-weight:700; text-align:center; transform:translateY(2px);">Bluff!</div>
+              <div style="background:#241715; color:#6e564f; border-radius:11px; padding:13px; font-weight:700; text-align:center;">Bluff!</div>
+            </div>
+            <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:14px;">
+              <div style="background:transparent; border:1.5px solid rgba(231,185,74,.5); color:#f3ead4; border-radius:11px; padding:13px; font-weight:600; text-align:center;">Join</div>
+              <div style="background:rgba(231,185,74,.12); border:1.5px solid #e7b94a; color:#f3ead4; border-radius:11px; padding:13px; font-weight:600; text-align:center;">Join</div>
+              <div style="background:rgba(231,185,74,.2); border:1.5px solid #e7b94a; color:#fff; border-radius:11px; padding:13px; font-weight:600; text-align:center; transform:translateY(2px);">Join</div>
+              <div style="background:transparent; border:1.5px solid rgba(255,255,255,.1); color:#3f4f45; border-radius:11px; padding:13px; font-weight:600; text-align:center;">Join</div>
+            </div>
+          </div>
+
+          <div style="font-family:'Space Mono',monospace; font-size:12px; letter-spacing:1.5px; color:#8fa094; border-bottom:1px solid rgba(255,255,255,.1); padding-bottom:8px; margin-bottom:18px;">05 &nbsp; SPACING SCALE</div>
+          <div style="display:flex; align-items:flex-end; gap:14px; margin-bottom:40px;">
+            <sc-for list="{{ spacing }}" as="sp" hint-placeholder-count="7">
+              <div style="display:flex; flex-direction:column; align-items:center; gap:6px;">
+                <div style="width:{{ sp.px }}; height:{{ sp.px }}; background:linear-gradient(180deg,#f0c659,#d39f31); border-radius:4px;"></div>
+                <div style="font-family:'Space Mono',monospace; font-size:10px; color:#8fa094;">{{ sp.label }}</div>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="font-family:'Space Mono',monospace; font-size:12px; letter-spacing:1.5px; color:#8fa094; border-bottom:1px solid rgba(255,255,255,.1); padding-bottom:8px; margin-bottom:18px;">06 &nbsp; MOTION SPECS</div>
+          <div style="display:flex; flex-direction:column; gap:0; margin-bottom:30px; border:1px solid rgba(255,255,255,.08); border-radius:12px; overflow:hidden;">
+            <div style="display:grid; grid-template-columns:1.3fr 0.8fr 1.5fr 2fr; gap:12px; padding:11px 16px; background:#0a130f; font-family:'Space Mono',monospace; font-size:10px; letter-spacing:1px; text-transform:uppercase; color:#8fa094;">
+              <div>Moment</div><div>Duration</div><div>Easing</div><div>What happens</div>
+            </div>
+            <sc-for list="{{ motion }}" as="m" hint-placeholder-count="5">
+              <div style="{{ m.row }}">
+                <div style="font-weight:600; color:#f3ead4;">{{ m.name }}</div>
+                <div style="font-family:'Space Mono',monospace; font-size:13px; color:#e7b94a;">{{ m.dur }}</div>
+                <div style="font-family:'Space Mono',monospace; font-size:11px; color:#9fb0a3;">{{ m.ease }}</div>
+                <div style="font-size:12px; color:#b7c3b6;">{{ m.desc }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+  </main>
+
+  <!-- toast -->
+  <sc-if value="{{ toast }}" hint-placeholder-val="x">
+    <div style="position:fixed; bottom:22px; left:50%; transform:translateX(-50%); background:#0a130f; border:1px solid rgba(231,185,74,.4); color:#f3ead4; padding:11px 20px; border-radius:11px; font-size:14px; z-index:80; box-shadow:0 10px 30px rgba(0,0,0,.5); animation:fadeUp .25s both;">{{ toast }}</div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  players = [
+    {name:'You',   color:'#e7b94a'},
+    {name:'Marco', color:'#4aa3e0'},
+    {name:'Dana',  color:'#e0503e'},
+    {name:'Priya', color:'#5bbf7a'},
+    {name:'Leo',   color:'#b57ce0'},
+    {name:'Suki',  color:'#e08a3e'}
+  ];
+  seats = [
+    {top:'88%', left:'50%'},
+    {top:'11%', left:'50%'},
+    {top:'24%', left:'15%'},
+    {top:'24%', left:'85%'},
+    {top:'56%', left:'7%'},
+    {top:'56%', left:'93%'}
+  ];
+  counts = [7,5,2,6,4,7];
+  ranks = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+  rankNames = {A:'Aces','2':'Twos','3':'Threes','4':'Fours','5':'Fives','6':'Sixes','7':'Sevens','8':'Eights','9':'Nines','10':'Tens',J:'Jacks',Q:'Queens',K:'Kings'};
+  swatchColors = ['#e7b94a','#4aa3e0','#e0503e','#5bbf7a','#b57ce0','#e08a3e'];
+
+  state = {
+    screen:'landing',
+    name:'You', colorIdx:0, code:'',
+    myHand:[{r:'7',s:'S'},{r:'7',s:'H'},{r:'2',s:'D'},{r:'9',s:'C'},{r:'K',s:'S'},{r:'4',s:'H'},{r:'10',s:'D'}],
+    selected:[], rank:'7',
+    currentTurn:0, pile:23, flying:[], toast:null,
+    revealMounted:true, outcome:'lie', pilePhase:'center',
+    lobbyCount:5
+  };
+
+  componentWillUnmount(){ [this._pt,this._tt,this._r0,this._r1].forEach(t=>clearTimeout(t)); }
+
+  setScreen(k){ this.setState({screen:k}, ()=>{ if(k==='reveal') this.playReveal(); }); }
+  flash(msg){ this.setState({toast:msg}); clearTimeout(this._tt); this._tt=setTimeout(()=>this.setState({toast:null}),2200); }
+
+  toggleSelect(i){
+    if(this.state.currentTurn!==0) return;
+    this.setState(s=>{
+      const sel = s.selected.includes(i) ? s.selected.filter(x=>x!==i) : [...s.selected, i];
+      return {selected: sel};
+    });
+  }
+
+  playCards(){
+    if(!this.state.selected.length || this.state.currentTurn!==0) return;
+    const flying=[...this.state.selected];
+    this.setState({flying});
+    clearTimeout(this._pt);
+    this._pt=setTimeout(()=>{
+      this.setState(st=>({
+        myHand: st.myHand.filter((_,i)=>!flying.includes(i)),
+        selected:[], flying:[], pile: st.pile + flying.length, currentTurn:1
+      }));
+      this.flash('You played '+flying.length+' as '+this.rankNames[this.state.rank]);
+    },480);
+  }
+
+  nextTurn(){ this.setState(s=>({currentTurn:(s.currentTurn+1)%6})); }
+
+  playReveal(){
+    clearTimeout(this._r0); clearTimeout(this._r1);
+    this.setState({revealMounted:false, pilePhase:'center'}, ()=>{
+      this._r0=setTimeout(()=>this.setState({revealMounted:true}), 40);
+      this._r1=setTimeout(()=>this.setState({pilePhase:'gone'}), 1850);
+    });
+  }
+  setOutcome(o){ this.setState({outcome:o}, ()=>this.playReveal()); }
+
+  renderVals(){
+    const S=this.state;
+    const screen=S.screen;
+    const navDef=[['landing','Landing'],['lobby','Lobby'],['table','Table'],['mobile','Mobile'],['reveal','Bluff!'],['win','Win'],['edge','States'],['system','System']];
+    const navItems=navDef.map(([k,label])=>{
+      const active=screen===k;
+      return {label, onClick:()=>this.setScreen(k),
+        style:`background:${active?'#e7b94a':'transparent'}; color:${active?'#2a1c05':'#b7c3b6'}; border:1px solid ${active?'#e7b94a':'rgba(255,255,255,.12)'}; border-radius:8px; padding:6px 11px; font-family:'Space Grotesk',sans-serif; font-size:12px; font-weight:${active?'700':'500'}; cursor:pointer;`};
+    });
+
+    // swatches
+    const swatches=this.swatchColors.map((hex,i)=>({
+      onClick:()=>this.setState({colorIdx:i}),
+      style:`width:30px; height:30px; border-radius:50%; background:${hex}; border:2px solid ${S.colorIdx===i?'#f3ead4':'transparent'}; box-shadow:${S.colorIdx===i?'0 0 0 2px '+hex:'none'}; cursor:pointer;`
+    }));
+
+    // hand fan
+    const buildHand=(w,overlap)=>{
+      const n=S.myHand.length, mid=(n-1)/2;
+      return S.myHand.map((c,i)=>{
+        const off=i-mid, ang=off*6, arc=Math.abs(off)*Math.abs(off)*3.0;
+        const sel=S.selected.includes(i), fly=S.flying.includes(i);
+        const ty=arc-(sel?30:0);
+        return {r:c.r, s:c.s, sel, onClick:()=>this.toggleSelect(i),
+          wrap:`transform:rotate(${ang}deg) translateY(${ty}px); transform-origin:center bottom; margin:0 ${overlap}px; cursor:pointer; transition:transform .18s cubic-bezier(.2,.8,.3,1); z-index:${sel?60:i+1}; animation:${fly?'playToPile .48s cubic-bezier(.5,0,.7,1) forwards':'none'};`};
+      });
+    };
+    const hand=buildHand(92,-20);
+    const handMobile=buildHand(64,-14);
+
+    // rank chips
+    const rankChips=this.ranks.map(r=>{
+      const active=r===S.rank, legal=r==='7';
+      const base=`flex:none; min-width:38px; height:40px; border-radius:9px; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:15px; cursor:pointer;`;
+      return {r,
+        style: base + (active
+          ? `background:linear-gradient(180deg,#f0c659,#d39f31); color:#2a1c05; border:none; box-shadow:0 4px 10px rgba(231,185,74,.4);`
+          : `background:#0e211a; color:#cfe0d3; border:1px solid ${legal?'rgba(231,185,74,.7)':'rgba(255,255,255,.12)'};`),
+        mstyle:`flex:none; min-width:42px; height:46px; border-radius:10px; font-weight:700; font-size:16px; cursor:pointer;`+(active
+          ? `background:linear-gradient(180deg,#f0c659,#d39f31); color:#2a1c05; border:none;`
+          : `background:#0e211a; color:#cfe0d3; border:1px solid ${legal?'rgba(231,185,74,.7)':'rgba(255,255,255,.12)'};`),
+        onClick:()=>this.setState({rank:r})};
+    });
+
+    // opponents (seats 1..5)
+    const opponents=[1,2,3,4,5].map(i=>{
+      const turn=S.currentTurn===i;
+      return {name:this.players[i].name, color:this.players[i].color, initial:this.players[i].name[0],
+        count:this.counts[i], tag: i===2 ? 'played 2 \u25b8 Sevens' : null,
+        glow: turn ? '0 0 0 4px rgba(231,185,74,.8), 0 0 26px rgba(231,185,74,.7)' : '0 4px 12px rgba(0,0,0,.4)',
+        mglow: turn ? 'rgba(231,185,74,.16)' : 'transparent',
+        seat:`position:absolute; top:${this.seats[i].top}; left:${this.seats[i].left}; transform:translate(-50%,-50%); z-index:10;`};
+    });
+
+    // turn halo
+    const ht=this.seats[S.currentTurn];
+    const turnHalo=`position:absolute; top:${ht.top}; left:${ht.left}; width:78px; height:78px; border-radius:50%; transform:translate(-50%,-50%); pointer-events:none; z-index:8; transition:top .5s cubic-bezier(.45,0,.2,1), left .5s cubic-bezier(.45,0,.2,1); animation:haloPulse 1.8s ease-in-out infinite;`;
+
+    // banner
+    const yourTurn=S.currentTurn===0;
+    const banner={
+      text: yourTurn ? 'YOUR TURN' : this.players[S.currentTurn].name+' is playing\u2026',
+      sub: yourTurn ? 'Play Sevens \u2014 or call Dana\u2019s bluff' : 'Watch the pile. Smell a lie?',
+      pill:`display:inline-block; font-family:'DM Serif Display',serif; font-size:26px; padding:6px 26px; border-radius:30px; ${yourTurn?'background:linear-gradient(180deg,#f0c659,#d39f31); color:#2a1c05; box-shadow:0 8px 22px rgba(231,185,74,.4);':'background:rgba(10,19,15,.7); color:#f3ead4; border:1px solid rgba(255,255,255,.14);'}`
+    };
+
+    // play button
+    const selCount=S.selected.length;
+    const playEnabled=selCount>0 && yourTurn;
+    const playLabel= !yourTurn ? 'Not your turn' : (selCount? `Play ${selCount} as ${this.rankNames[S.rank]}` : 'Select cards');
+    const playStyle=`flex:none; white-space:nowrap; border:none; border-radius:11px; padding:13px 22px; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:15px; cursor:${playEnabled?'pointer':'not-allowed'}; ${playEnabled?'background:linear-gradient(180deg,#f0c659,#dca233); color:#2a1c05; box-shadow:0 6px 16px rgba(231,185,74,.3);':'background:#1a261f; color:#5e6f63;'}`;
+    const playStyleMobile=`flex:1; border:none; border-radius:13px; padding:15px; min-height:52px; font-weight:700; font-size:15px; cursor:${playEnabled?'pointer':'not-allowed'}; ${playEnabled?'background:linear-gradient(180deg,#f0c659,#dca233); color:#2a1c05;':'background:#1a261f; color:#5e6f63;'}`;
+
+    // lobby
+    const lobbyCount=S.lobbyCount;
+    const lobbySlots=[];
+    for(let i=0;i<8;i++){
+      if(i<lobbyCount){
+        const p=this.players[i%this.players.length];
+        const isHost=i===0;
+        const ready=i!==4;
+        lobbySlots.push({filled:true, empty:false, name:isHost?'You (host)':p.name, color:p.color, initial:(isHost?'Y':p.name[0]), isHost,
+          status:isHost?'ready to deal':(ready?'ready':'choosing color\u2026'),
+          statusColor:ready?'#5bbf7a':'#e7b94a',
+          style:'background:#0d211a; border:1px solid rgba(231,185,74,.25); border-radius:14px; padding:18px 12px;'});
+      } else {
+        lobbySlots.push({filled:false, empty:true, style:'background:rgba(13,33,26,.4); border:1px dashed rgba(255,255,255,.12); border-radius:14px; padding:18px 12px;'});
+      }
+    }
+    const canStart=lobbyCount>=2;
+    const startStyle=`border:none; border-radius:11px; padding:14px 30px; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:16px; cursor:${canStart?'pointer':'not-allowed'}; ${canStart?'background:linear-gradient(180deg,#f0c659,#dca233); color:#2a1c05; box-shadow:0 6px 18px rgba(231,185,74,.35);':'background:#1a261f; color:#5e6f63;'}`;
+    const startLabel=canStart?'Deal &middot; start game \u2192':'Need 2 players to start';
+
+    // reveal view
+    const lie=S.outcome==='lie';
+    const rv={
+      caller:'Priya', accused:'Dana', claim:'Sevens',
+      cards: lie ? [{r:'7',s:'S'},{r:'2',s:'H'}] : [{r:'7',s:'S'},{r:'7',s:'D'}],
+      title: lie ? 'Bluff!' : 'Honest',
+      color: lie ? '#e8604c' : '#5bbf7a',
+      sub: lie ? 'Dana was lying \u2014' : 'Dana told the truth \u2014',
+      pickup: lie ? 'Dana picks up the pile.' : 'Priya picks up the pile.',
+      loserColor: lie ? '#e8604c' : '#5bbf7a'
+    };
+    rv.cards=rv.cards.map((c,i)=>({r:c.r, s:c.s, delay:(0.55+i*0.24).toFixed(2)+'s'}));
+    // pile transfer target (toward Dana left / Priya right)
+    const gone=S.pilePhase==='gone';
+    const tx = lie ? '-360px' : '360px';
+    const pileStyle=`position:absolute; top:40%; left:50%; width:66px; height:92px; z-index:6; transition:transform .8s cubic-bezier(.5,0,.3,1), opacity .8s; transform:translate(-50%,0) ${gone?`translate(${tx},-150px) scale(.45)`:''}; opacity:${gone?'0':'1'};`;
+
+    // confetti
+    const colors=['#e7b94a','#e0503e','#4aa3e0','#5bbf7a','#b57ce0','#f3ead4'];
+    const confetti=[];
+    for(let i=0;i<42;i++){
+      const left=(i*2399%100), dur=(2.6+(i%5)*0.5), delay=((i*7)%30)/10, sz=6+(i%4)*3, col=colors[i%colors.length], rot=(i*53%90)-45;
+      confetti.push({style:`position:absolute; top:-40px; left:${left}%; width:${sz}px; height:${sz*1.6}px; background:${col}; border-radius:2px; transform:rotate(${rot}deg); animation:confettiFall ${dur}s linear ${delay}s infinite;`});
+    }
+
+    // standings
+    const standData=[['Marco','#4aa3e0','0 cards','1st'],['You','#e7b94a','2 cards','2nd'],['Priya','#5bbf7a','4 cards','3rd'],['Leo','#b57ce0','6 cards','4th'],['Suki','#e08a3e','9 cards','5th'],['Dana','#e0503e','13 cards','6th']];
+    const standings=standData.map((d,i)=>({place:d[3], name:d[0], color:d[1], initial:d[0][0], cards:d[2],
+      row:`display:flex; align-items:center; gap:12px; padding:11px 16px; ${i===0?'background:rgba(231,185,74,.12);':''} ${i<standData.length-1?'border-bottom:1px solid rgba(255,255,255,.06);':''}`}));
+
+    // palette
+    const palette=[
+      {name:'Felt deep', hex:'#103021', use:'table & app ground'},
+      {name:'Felt light', hex:'#1f5a41', use:'table center glow'},
+      {name:'Brass', hex:'#e7b94a', use:'primary action, accent'},
+      {name:'Ivory', hex:'#f3ead4', use:'cards, text on felt'},
+      {name:'Bluff red', hex:'#e8604c', use:'call bluff, danger'},
+      {name:'True green', hex:'#5bbf7a', use:'honest, ready, online'},
+      {name:'Slate', hex:'#28323a', use:'spades, deep ink'},
+      {name:'Card blue', hex:'#2f6fd0', use:'diamonds (4-color)'}
+    ];
+    const spacing=[['4',4],['8',8],['12',12],['16',16],['24',24],['32',32],['48',48]].map(([l,p])=>({label:l, px:p+'px'}));
+    const motionData=[
+      ['Card play','0.48s','cubic-bezier(.5,0,.7,1)','Selected cards lift, accelerate up into the pile and fade; count ticks up.'],
+      ['Bluff call \u2192 flip','0.55s, stagger 0.24s','cubic-bezier(.45,.05,.2,1)','Challenged cards rotateY 180\u21920 one after another. Suspense in the gap.'],
+      ['Verdict stamp','0.50s @1.3s','cubic-bezier(.2,1.5,.4,1)','BLUFF/HONEST slams in scale 1.7\u21921 with a -4\u00b0 tilt and overshoot.'],
+      ['Pile pickup','0.80s @1.85s','cubic-bezier(.5,0,.3,1)','Whole pile slides to the loser\u2019s seat, shrinks and fades into their count.'],
+      ['Turn change','0.50s','cubic-bezier(.45,0,.2,1)','Glowing halo glides between seats; arriving avatar gets a brass ring + pulse.'],
+      ['Win confetti','2.6\u20134.6s loop','linear','40 brass/suit chips fall on a stagger; winner medallion floats 8px, 3s ease.']
+    ];
+    const motion=motionData.map((m,i)=>({name:m[0], dur:m[1], ease:m[2], desc:m[3],
+      row:`display:grid; grid-template-columns:1.3fr 0.8fr 1.5fr 2fr; gap:12px; padding:13px 16px; align-items:center; ${i<motionData.length-1?'border-bottom:1px solid rgba(255,255,255,.06);':''}`}));
+
+    return {
+      navItems,
+      isLanding:screen==='landing', isLobby:screen==='lobby', isTable:screen==='table',
+      isMobile:screen==='mobile', isReveal:screen==='reveal', isWin:screen==='win',
+      isEdge:screen==='edge', isSystem:screen==='system',
+      // landing
+      name:S.name, code:S.code, swatches,
+      onName:(e)=>this.setState({name:e.target.value}),
+      onCode:(e)=>this.setState({code:(e.target.value||'').toUpperCase().slice(0,4)}),
+      goLobby:()=>this.setScreen('lobby'),
+      // lobby
+      lobbyCountText:`${lobbyCount} of 8 seated`,
+      lobbyWaiting:lobbyCount<2,
+      lobbySlots, startStyle, startLabel,
+      copyCode:()=>this.flash('Invite link copied \u2014 paste it in the group chat'),
+      startGame:()=>{ if(canStart) this.setScreen('table'); },
+      addPlayer:()=>this.setState(s=>({lobbyCount:Math.min(8,s.lobbyCount+1)})),
+      // table
+      hand, handMobile, rankChips, opponents, turnHalo, banner, pile:S.pile,
+      playStyle, playStyleMobile, playLabel,
+      playCards:()=>this.playCards(), nextTurn:()=>this.nextTurn(),
+      callBluff:()=>this.setScreen('reveal'),
+      // reveal
+      revealMounted:S.revealMounted, rv, pileStyle,
+      setLie:()=>this.setOutcome('lie'), setTrue:()=>this.setOutcome('true'),
+      replay:()=>this.playReveal(), revealDone:()=>this.setScreen('win'),
+      lieBtn:`background:${lie?'#e8604c':'transparent'}; color:${lie?'#fff':'#b7c3b6'}; border:1px solid ${lie?'#e8604c':'rgba(255,255,255,.15)'}; border-radius:7px; padding:6px 11px; font-size:12px; cursor:pointer;`,
+      trueBtn:`background:${!lie?'#5bbf7a':'transparent'}; color:${!lie?'#0a130f':'#b7c3b6'}; border:1px solid ${!lie?'#5bbf7a':'rgba(255,255,255,.15)'}; border-radius:7px; padding:6px 11px; font-size:12px; cursor:pointer;`,
+      // win
+      confetti, standings,
+      goLobbyFromWin:()=>this.setScreen('lobby'), goLandingFromWin:()=>this.setScreen('landing'),
+      // system
+      palette, spacing, motion,
+      // toast
+      toast:S.toast
+    };
+  }
+}
+</script>
+</body>
+</html>
