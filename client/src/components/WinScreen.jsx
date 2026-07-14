@@ -2,15 +2,21 @@ import { getPlayerColor } from '../gameUtils';
 
 const CONFETTI_COLORS = ['#e7b94a', '#e0503e', '#4aa3e0', '#5bbf7a', '#b57ce0', '#f3ead4'];
 
-export default function WinScreen({ winnerName, moveCount, players, playerColors, isHost, onPlayAgain }) {
-  const confetti = Array.from({ length: 42 }, (_, i) => ({
-    left: (i * 2399) % 100,
-    dur: 2.6 + (i % 5) * 0.5,
-    delay: ((i * 7) % 30) / 10,
-    size: 6 + (i % 4) * 3,
-    color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
-    rot: (i * 53) % 90 - 45,
-  }));
+export default function WinScreen({ winnerName, moveCount, players, playerColors, isHost, onPlayAgain, onQuit }) {
+  // Even spread across the full width (left + right), not clustered on one side.
+  const confetti = Array.from({ length: 56 }, (_, i) => {
+    const lane = i % 14; // 14 columns spanning 4% → 96%
+    const left = 4 + lane * (92 / 13);
+    const jitter = ((i * 17) % 7) - 3;
+    return {
+      left: Math.min(96, Math.max(2, left + jitter)),
+      dur: 2.4 + (i % 6) * 0.45,
+      delay: ((i * 11) % 40) / 10,
+      size: 6 + (i % 5) * 2.5,
+      color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+      rot: (i * 47) % 90 - 45,
+    };
+  });
 
   const sorted = [...players].sort((a, b) => {
     if (a.name === winnerName) return -1;
@@ -77,6 +83,11 @@ export default function WinScreen({ winnerName, moveCount, players, playerColors
               <div className="lobby-waiting__dots"><span /><span /><span /></div>
               <span>Waiting for host to deal another round…</span>
             </div>
+          )}
+          {onQuit && (
+            <button type="button" className="btn btn-outline" onClick={onQuit}>
+              Leave room
+            </button>
           )}
         </div>
       </div>

@@ -10,6 +10,7 @@ export default function Lobby({
   playerColors,
   scoresRefresh,
   onStart,
+  onQuit,
 }) {
   const isHost = hostId === playerId;
   const canStart = players.length >= 2;
@@ -97,9 +98,16 @@ export default function Lobby({
               <div className="lobby-waiting__dots">
                 <span /><span /><span />
               </div>
-              <span>Waiting for host to start the game</span>
+              <span>
+                {hostId
+                  ? 'Waiting for host to start the game'
+                  : 'Waiting for the room creator to join — only they can host'}
+              </span>
             </div>
           )}
+          <button type="button" className="btn btn-outline btn-sm lobby-quit" onClick={onQuit}>
+            Leave room
+          </button>
         </div>
 
         <ScoresPanel

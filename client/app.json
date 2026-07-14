@@ -1,0 +1,11 @@
+{
+  "expo": {
+    "name": "Bluff Client",
+    "slug": "bluff",
+    "extra": {
+      "eas": {
+        "projectId": "f32942b6-9fd6-4b6b-9285-8184ebf8b772"
+      }
+    }
+  }
+}

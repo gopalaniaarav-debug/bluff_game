@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { RANKS, RANK_NAMES, getPlayerColor, getSeatStyle, getTurnHaloStyle } from '../gameUtils';
+import { useIsMobile } from '../useMediaQuery';
 import CardHand from './CardHand';
 import PlayerSeat from './PlayerSeat';
 import PlayingCard from './PlayingCard';
 import ChatPanel from './ChatPanel';
+import HandOverviewOverlay from './HandOverviewOverlay';
 
 export default function GameScreen({
   gameState,
@@ -15,11 +17,19 @@ export default function GameScreen({
   onSkip,
   onCallBluff,
   onPassBluff,
+  onQuit,
   chatMessages,
   onSendChat,
   playerColors,
+  chatOpenRef,
 }) {
   const [chatOpen, setChatOpen] = useState(false);
+  const [handOverviewOpen, setHandOverviewOpen] = useState(false);
+  const isMobile = useIsMobile();
+
+  useEffect(() => {
+    if (chatOpenRef) chatOpenRef.current = chatOpen;
+  }, [chatOpen, chatOpenRef]);
 
   const {
     players,
@@ -29,12 +39,15 @@ export default function GameScreen({
     currentRank,
     phase,
     pendingPlayPlayerId,
+    pendingPlayCount = 0,
     yourHand,
     yourId,
     bluffPasses = [],
     consecutiveSkips = 0,
     challengeAllowed = true,
   } = gameState;
+
+  const cardWord = (n) => `${n} card${n === 1 ? '' : 's'}`;
 
   const currentPlayerId = playerOrder[turnIndex];
   const isMyTurn = currentPlayerId === yourId;
@@ -88,15 +101,15 @@ export default function GameScreen({
     bannerPill = 'Smell a lie?';
     bannerSub = hasPassed
       ? 'You passed — waiting on others to call or pass'
-      : `${pendingPlayer?.name} claims ${RANK_NAMES[currentRank] || currentRank} — call bluff or pass`;
+      : `${pendingPlayer?.name} put down ${cardWord(pendingPlayCount)} claiming ${RANK_NAMES[currentRank] || currentRank} — call bluff or pass`;
     bannerPillClass = 'game-banner__pill--challenge';
   } else if (canPassBluff) {
     bannerPill = 'Accept the play?';
-    bannerSub = `${pendingPlayer?.name} played — pass to continue`;
+    bannerSub = `${pendingPlayer?.name} played ${cardWord(pendingPlayCount)} — pass to continue`;
     bannerPillClass = 'game-banner__pill--challenge';
   } else if (iJustPlayed) {
     bannerPill = 'Cards played';
-    bannerSub = 'Other players may call your bluff…';
+    bannerSub = `You put down ${cardWord(pendingPlayCount)} — others may call your bluff…`;
   } else if (isMyTurn && isOpening) {
     bannerPill = 'OPEN THE GAME';
     bannerSub = 'Play Ace of Spades to start — extra cards may bluff';
@@ -111,13 +124,13 @@ export default function GameScreen({
     bannerPillClass = 'game-banner__pill--yours';
   } else if (isBluffWindow && pendingPlayer) {
     bannerPill = `${pendingPlayer.name} just played`;
-    bannerSub = 'Waiting for challenges…';
+    bannerSub = `Put down ${cardWord(pendingPlayCount)} — waiting for challenges…`;
   } else if (currentRank) {
     bannerSub = `${rankName} rank · ${consecutiveSkips} skip${consecutiveSkips === 1 ? '' : 's'} this round`;
   }
 
   return (
-    <div className="game-screen">
+    <div className={`game-screen ${isMobile ? 'game-screen--mobile' : ''} ${chatOpen ? 'game-screen--chat-open' : ''}`}>
       <div className="game-banner">
         <div className={`game-banner__pill ${bannerPillClass}`}>{bannerPill}</div>
         <div className="game-banner__sub">{bannerSub}</div>
@@ -126,7 +139,7 @@ export default function GameScreen({
       <div className="game-body">
         <div className="game-felt">
           {haloVisible && (
-            <div className="turn-halo" style={getTurnHaloStyle(turnSeatIndex)} />
+            <div className="turn-halo" style={getTurnHaloStyle(turnSeatIndex, isMobile)} />
           )}
 
           <div className="game-oval">
@@ -137,7 +150,7 @@ export default function GameScreen({
               const isPending = p.id === pendingPlayPlayerId && isBluffWindow;
               let tag = null;
               if (isPending && currentRank) {
-                tag = `played · claims ${rankName}`;
+                tag = `played ${cardWord(pendingPlayCount)} · claims ${rankName}`;
               }
               return (
                 <PlayerSeat
@@ -147,15 +160,21 @@ export default function GameScreen({
                   isActive={isActive}
                   isPending={isPending}
                   tag={tag}
-                  position={getSeatStyle(i, opponents.length)}
+                  position={getSeatStyle(i, opponents.length, isMobile)}
                 />
               );
             })}
 
             <div className="center-cluster">
+              {!isBluffWindow && currentPlayer && (
+                <div className={`center-cluster__turn ${isMyTurn ? 'center-cluster__turn--yours' : ''}`}>
+                  {isMyTurn ? 'Your turn' : `${currentPlayer.name}'s turn`}
+                </div>
+              )}
+
               {pendingPlayer && isBluffWindow && currentRank && (
                 <div className="center-cluster__claim">
-                  {pendingPlayer.name} played · claims <strong>{rankName}</strong>
+                  {pendingPlayer.name} played <strong>{cardWord(pendingPlayCount)}</strong> · claims <strong>{rankName}</strong>
                 </div>
               )}
 
@@ -190,12 +209,12 @@ export default function GameScreen({
                 )}
               </div>
 
-              {canCallBluff && (
+              {canCallBluff && !isMobile && (
                 <button type="button" className="btn-bluff btn-bluff--center" onClick={onCallBluff}>
                   Call Bluff!
                 </button>
               )}
-              {canPassBluff && (
+              {canPassBluff && !isMobile && (
                 <button type="button" className="btn-pass btn-pass--center" onClick={onPassBluff}>
                   Pass
                 </button>
@@ -203,28 +222,63 @@ export default function GameScreen({
             </div>
           </div>
         </div>
-
-        <aside className={`chat-drawer ${chatOpen ? 'chat-drawer--open' : ''}`}>
-          <ChatPanel messages={chatMessages} onSend={onSendChat} onClose={() => setChatOpen(false)} />
-        </aside>
-
-        <button
-          type="button"
-          className="chat-fab"
-          onClick={() => setChatOpen((o) => !o)}
-          aria-label="Toggle chat"
-        >
-          💬
-        </button>
       </div>
 
+      {chatOpen && (
+        <button
+          type="button"
+          className="chat-backdrop"
+          onClick={() => setChatOpen(false)}
+          aria-label="Close chat"
+        />
+      )}
+
+      <aside className={`chat-drawer ${chatOpen ? 'chat-drawer--open' : ''}`} aria-hidden={!chatOpen}>
+        <ChatPanel messages={chatMessages} onSend={onSendChat} onClose={() => setChatOpen(false)} />
+      </aside>
+
       <div className="control-deck">
+        <div className="control-deck__top">
+          <button
+            type="button"
+            className={`chat-toggle ${chatOpen ? 'chat-toggle--active' : ''}`}
+            onClick={() => setChatOpen((o) => !o)}
+            aria-expanded={chatOpen}
+            aria-label={chatOpen ? 'Hide chat' : 'Show chat'}
+          >
+            <span className="chat-toggle__icon" aria-hidden>💬</span>
+            <span className="chat-toggle__label">{chatOpen ? 'Hide chat' : 'Chat'}</span>
+            {!chatOpen && chatMessages.length > 0 && (
+              <span className="chat-toggle__badge">{chatMessages.length}</span>
+            )}
+          </button>
+          <div className="hand-count" title="Cards in your hand">
+            <span className="hand-count__icon" aria-hidden>🃏</span>
+            <span className="hand-count__num">{yourHand.length}</span>
+            <span className="hand-count__label">in hand</span>
+          </div>
+          <button type="button" className="btn btn-outline btn-sm game-quit-btn" onClick={onQuit}>
+            Quit
+          </button>
+        </div>
+
         <CardHand
           cards={yourHand}
           selectedCards={selectedCards}
           onToggleCard={onToggleCard}
           disabled={!canActOnTurn}
+          compact={isMobile}
         />
+
+        <div className="control-deck__hand-tools">
+          <button
+            type="button"
+            className="btn-show-cards"
+            onClick={() => setHandOverviewOpen(true)}
+          >
+            Show all cards
+          </button>
+        </div>
 
         <div className="control-deck__actions">
           {inChallengeWindow ? (
@@ -294,6 +348,15 @@ export default function GameScreen({
           )}
         </div>
       </div>
+
+      <HandOverviewOverlay
+        open={handOverviewOpen}
+        cards={yourHand}
+        selectedCards={selectedCards}
+        onToggleCard={onToggleCard}
+        disabled={!canActOnTurn}
+        onClose={() => setHandOverviewOpen(false)}
+      />
     </div>
   );
 }

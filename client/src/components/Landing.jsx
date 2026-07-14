@@ -2,33 +2,131 @@ import { useState } from 'react';
 import PlayingCard from './PlayingCard';
 import { PLAYER_COLORS } from '../gameUtils';
 import SavedRoomsList from './SavedRoomsList';
+import AboutModal from './AboutModal';
 
-export default function Landing({ onCreate, onJoin, error, connected, roomsRefresh }) {
-  const [name, setName] = useState('');
+export default function Landing({
+  user,
+  onLogin,
+  onRegister,
+  onLogout,
+  onCreate,
+  onJoin,
+  onStartAI,
+  error,
+  connected,
+  roomsRefresh,
+}) {
+  const [mode, setMode] = useState('login');
+  const [displayName, setDisplayName] = useState('');
+  const [password, setPassword] = useState('');
   const [roomCode, setRoomCode] = useState('');
   const [colorIdx, setColorIdx] = useState(0);
   const [localRoomsRefresh, setLocalRoomsRefresh] = useState(0);
+  const [authError, setAuthError] = useState('');
+  const [aboutOpen, setAboutOpen] = useState(false);
+
+  const handleAuth = async (e) => {
+    e.preventDefault();
+    setAuthError('');
+    try {
+      if (mode === 'login') {
+        await onLogin(displayName.trim(), password);
+      } else {
+        await onRegister(displayName.trim(), password);
+      }
+      setPassword('');
+    } catch (err) {
+      setAuthError(err.message);
+    }
+  };
 
   const handleCreate = async (e) => {
     e.preventDefault();
-    if (name.trim()) {
-      await onCreate(name.trim(), PLAYER_COLORS[colorIdx]);
-      setLocalRoomsRefresh((k) => k + 1);
-    }
+    await onCreate(PLAYER_COLORS[colorIdx]);
+    setLocalRoomsRefresh((k) => k + 1);
   };
 
   const handleJoin = (e) => {
     e.preventDefault();
-    if (name.trim() && roomCode.trim()) {
-      onJoin(name.trim(), roomCode.trim().toUpperCase(), PLAYER_COLORS[colorIdx]);
+    if (roomCode.trim()) {
+      onJoin(roomCode.trim().toUpperCase(), PLAYER_COLORS[colorIdx]);
     }
   };
 
   const handleJoinSaved = (code) => {
-    if (name.trim()) {
-      onJoin(name.trim(), code, PLAYER_COLORS[colorIdx]);
-    }
+    onJoin(code, PLAYER_COLORS[colorIdx]);
   };
+
+  const handleStartAI = () => {
+    onStartAI?.(PLAYER_COLORS[colorIdx]);
+  };
+
+  if (!user) {
+    return (
+      <div className="screen screen--landing">
+        <div className="landing-shine" />
+        <div className="landing-inner">
+          <h1 className="landing-title">Bluff</h1>
+          <p className="landing-tagline">
+            Sign in with your display name and password to host private rooms and track your games.
+          </p>
+
+          <div className="auth-tabs">
+            <button
+              type="button"
+              className={`auth-tabs__tab ${mode === 'login' ? 'auth-tabs__tab--active' : ''}`}
+              onClick={() => { setMode('login'); setAuthError(''); }}
+            >
+              Log in
+            </button>
+            <button
+              type="button"
+              className={`auth-tabs__tab ${mode === 'register' ? 'auth-tabs__tab--active' : ''}`}
+              onClick={() => { setMode('register'); setAuthError(''); }}
+            >
+              Create account
+            </button>
+          </div>
+
+          <form className="auth-form" onSubmit={handleAuth}>
+            <label className="field-label">Display name</label>
+            <input
+              className="field-input"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              maxLength={14}
+              placeholder="Your table name"
+              required
+            />
+            <label className="field-label">Password</label>
+            <input
+              className="field-input"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="At least 4 characters"
+              minLength={4}
+              required
+            />
+            <button type="submit" className="btn btn-gold" disabled={!connected}>
+              {mode === 'login' ? 'Log in →' : 'Create account →'}
+            </button>
+          </form>
+
+          <button type="button" className="landing-about-link" onClick={() => setAboutOpen(true)}>
+            About · How to play
+          </button>
+
+          {!connected && (
+            <p className="error-msg">Server offline — start the game server and refresh.</p>
+          )}
+          {authError && <p className="error-msg">{authError}</p>}
+        </div>
+
+        <AboutModal open={aboutOpen} onClose={() => setAboutOpen(false)} />
+      </div>
+    );
+  }
 
   return (
     <div className="screen screen--landing">
@@ -54,19 +152,21 @@ export default function Landing({ onCreate, onJoin, error, connected, roomsRefre
 
         <h1 className="landing-title">Bluff</h1>
         <p className="landing-tagline">
-          Read the table. Bury the lie. Call it when you smell one.{' '}
-          <span className="landing-tagline__accent">2–8 players, one room code.</span>
+          Welcome back, <span className="landing-tagline__accent">{user.displayName}</span>.
+          {' '}Host a room or join with a code.
         </p>
 
+        <div className="landing-user-bar">
+          <span className="landing-user-bar__name">{user.displayName}</span>
+          <button type="button" className="btn btn-outline btn-sm" onClick={() => setAboutOpen(true)}>
+            About
+          </button>
+          <button type="button" className="btn btn-outline btn-sm" onClick={onLogout}>
+            Log out
+          </button>
+        </div>
+
         <div className="landing-name-row">
-          <label className="field-label">Your name</label>
-          <input
-            className="field-input landing-name-row__input"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            maxLength={14}
-            placeholder="Enter your display name"
-          />
           <label className="field-label">Your color</label>
           <div className="color-swatches landing-name-row__swatches">
             {PLAYER_COLORS.map((hex, i) => (
@@ -85,15 +185,15 @@ export default function Landing({ onCreate, onJoin, error, connected, roomsRefre
         <div className="landing-panels">
           <form className="landing-panel landing-panel--host" onSubmit={handleCreate}>
             <div className="landing-panel__title">Host a table</div>
-            <div className="landing-panel__desc">Spin up a private room and share the code. You deal.</div>
-            <button type="submit" className="btn btn-gold" disabled={!name.trim() || !connected}>
+            <div className="landing-panel__desc">Create a private room tied to your account.</div>
+            <button type="submit" className="btn btn-gold" disabled={!connected}>
               Create room →
             </button>
           </form>
 
           <form className="landing-panel landing-panel--join" onSubmit={handleJoin}>
             <div className="landing-panel__title">Join a table</div>
-            <div className="landing-panel__desc">Got a 4-letter code from a friend? Drop in.</div>
+            <div className="landing-panel__desc">Enter a 4-letter code from a friend.</div>
             <label className="field-label">Room code</label>
             <input
               className="field-input field-input--code"
@@ -104,27 +204,47 @@ export default function Landing({ onCreate, onJoin, error, connected, roomsRefre
               required
             />
             <div className="landing-panel__spacer" />
-            <button type="submit" className="btn btn-outline" disabled={!name.trim() || roomCode.length < 4 || !connected}>
+            <button type="submit" className="btn btn-outline" disabled={roomCode.length < 4 || !connected}>
               Join room
             </button>
           </form>
         </div>
 
+        <div className="ai-play">
+          <button
+            type="button"
+            className="ai-play__btn"
+            onClick={handleStartAI}
+            disabled={!connected}
+          >
+            <span className="ai-play__glow" aria-hidden />
+            <span className="ai-play__content">
+              <span className="ai-play__icon" aria-hidden>🤖</span>
+              <span className="ai-play__text">
+                <span className="ai-play__title">Play vs AI</span>
+                <span className="ai-play__desc">Instant match against a bluffing bot</span>
+              </span>
+              <span className="ai-play__arrow" aria-hidden>→</span>
+            </span>
+          </button>
+        </div>
+
         {!connected && (
-          <p className="error-msg">Server offline — start the game server and refresh. For ngrok, tunnel port 5173 with the Vite dev server running.</p>
+          <p className="error-msg">Server offline — start the game server and refresh.</p>
         )}
 
         {error && <p className="error-msg">{error}</p>}
 
         <SavedRoomsList
-          playerName={name}
           connected={connected}
           onJoinRoom={handleJoinSaved}
           refreshKey={roomsRefresh + localRoomsRefresh}
         />
 
-        <div className="landing-footer">NO APP · NO ACCOUNT · WORKS ON ANY PHONE BROWSER</div>
+        <div className="landing-footer">YOUR ACCOUNT · PRIVATE ROOMS · SCORE HISTORY</div>
       </div>
+
+      <AboutModal open={aboutOpen} onClose={() => setAboutOpen(false)} />
     </div>
   );
 }

@@ -1,6 +1,7 @@
-const MIN_CARD_W = 44;
+const MIN_CARD_W = 38;
 const MAX_CARD_W = 92;
 const MIN_PEEK = 30;
+const MIN_PEEK_NARROW = 22;
 
 /**
  * Spread n cards evenly across the full container width.
@@ -13,10 +14,11 @@ export function computeHandSpread(n, containerWidth, baseCardWidth = MAX_CARD_W)
 
   const usable = Math.max(containerWidth - 8, 200);
   let cardWidth = Math.min(baseCardWidth, MAX_CARD_W);
+  const minPeek = containerWidth < 400 ? MIN_PEEK_NARROW : MIN_PEEK;
 
-  const needed = cardWidth + (n - 1) * MIN_PEEK;
+  const needed = cardWidth + (n - 1) * minPeek;
   if (needed > usable) {
-    cardWidth = Math.max(MIN_CARD_W, usable - (n - 1) * MIN_PEEK);
+    cardWidth = Math.max(MIN_CARD_W, usable - (n - 1) * minPeek);
   }
 
   if (n === 1) {

@@ -1,10 +1,13 @@
 import { useMemo, useRef, useState, useEffect } from 'react';
 import PlayingCard from './PlayingCard';
 import { computeHandSpread } from '../handLayout';
+import { useIsMobile } from '../useMediaQuery';
 
 export default function CardHand({ cards, selectedCards, onToggleCard, disabled, compact = false }) {
   const containerRef = useRef(null);
   const [width, setWidth] = useState(900);
+  const isMobile = useIsMobile();
+  const useCompact = compact || isMobile;
 
   useEffect(() => {
     const el = containerRef.current;
@@ -22,7 +25,7 @@ export default function CardHand({ cards, selectedCards, onToggleCard, disabled,
     };
   }, []);
 
-  const baseCardWidth = compact ? 64 : 92;
+  const baseCardWidth = useCompact ? 58 : 92;
   const { cardWidth, slots } = useMemo(
     () => computeHandSpread(cards.length, width, baseCardWidth),
     [cards.length, width, baseCardWidth]
@@ -30,7 +33,7 @@ export default function CardHand({ cards, selectedCards, onToggleCard, disabled,
   const cardHeight = Math.round(cardWidth * 1.4);
 
   return (
-    <div className="card-hand" ref={containerRef}>
+    <div className={`card-hand ${useCompact ? 'card-hand--compact' : ''}`} ref={containerRef}>
       <div className="card-hand__spread" style={{ width: '100%', height: cardHeight + 28 }}>
         {cards.map((card, i) => {
           const slot = slots[i] ?? { left: 0, angle: 0, lift: 0 };
@@ -50,7 +53,7 @@ export default function CardHand({ cards, selectedCards, onToggleCard, disabled,
               <PlayingCard
                 card={card}
                 selected={sel}
-                size={compact ? 'sm' : 'lg'}
+                size={useCompact ? 'sm' : 'lg'}
                 style={{ width: cardWidth, height: cardHeight }}
                 onClick={disabled ? undefined : () => onToggleCard(i)}
               />

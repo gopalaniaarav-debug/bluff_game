@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { getServerUrl } from '../socket';
+import { authHeaders } from '../auth';
 
 export default function SavedRoomsList({
-  playerName,
   connected,
   onJoinRoom,
   refreshKey = 0,
@@ -15,8 +15,11 @@ export default function SavedRoomsList({
 
   const loadRooms = () => {
     setLoading(true);
-    fetch(`${getServerUrl()}/api/rooms`)
-      .then((r) => r.json())
+    fetch(`${getServerUrl()}/api/rooms`, { headers: authHeaders() })
+      .then((r) => {
+        if (r.status === 401) return { rooms: [] };
+        return r.json();
+      })
       .then((data) => setRooms(data.rooms ?? []))
       .catch(() => setRooms([]))
       .finally(() => setLoading(false));
@@ -29,7 +32,10 @@ export default function SavedRoomsList({
   const handleDelete = async (code) => {
     if (!window.confirm(`Delete room ${code} and all its scores?`)) return;
     setError('');
-    const res = await fetch(`${getServerUrl()}/api/rooms/${code}`, { method: 'DELETE' });
+    const res = await fetch(`${getServerUrl()}/api/rooms/${code}`, {
+      method: 'DELETE',
+      headers: authHeaders(),
+    });
     const data = await res.json();
     if (!res.ok) {
       setError(data.error || 'Could not delete room');
@@ -53,7 +59,7 @@ export default function SavedRoomsList({
     setError('');
     const res = await fetch(`${getServerUrl()}/api/rooms/${editingCode}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
       body: JSON.stringify({ newCode: next }),
     });
     const data = await res.json();
@@ -77,59 +83,67 @@ export default function SavedRoomsList({
   return (
     <div className="saved-rooms">
       <div className="saved-rooms__title">Your rooms</div>
-      <p className="saved-rooms__sub">Rejoin a saved table — each room keeps its own score history.</p>
+      <p className="saved-rooms__sub">
+        Rooms you created or played in. Only your own rooms can be edited or deleted.
+      </p>
 
       {error && <p className="error-msg">{error}</p>}
 
       {rooms.length === 0 ? (
-        <p className="saved-rooms__empty">No saved rooms yet — create one above to start a persistent table.</p>
+        <p className="saved-rooms__empty">No rooms yet — create one or join with a code.</p>
       ) : (
         <ul className="saved-rooms__list">
           {rooms.map((room) => (
-          <li key={room.code} className="saved-rooms__item">
-            {editingCode === room.code ? (
-              <div className="saved-rooms__edit">
-                <input
-                  className="field-input field-input--code saved-rooms__edit-input"
-                  value={editValue}
-                  onChange={(e) => setEditValue(e.target.value.toUpperCase().slice(0, 4))}
-                  maxLength={4}
-                />
-                <button type="button" className="btn btn-gold btn-sm" onClick={saveEdit}>
-                  Save
-                </button>
-                <button type="button" className="btn btn-outline btn-sm" onClick={() => setEditingCode(null)}>
-                  Cancel
-                </button>
-              </div>
-            ) : (
-              <>
-                <div className="saved-rooms__info">
-                  <span className="saved-rooms__code">{room.code}</span>
-                  <span className="saved-rooms__meta">
-                    Host {room.hostName} · {room.gameCount} game{room.gameCount === 1 ? '' : 's'}
-                  </span>
-                </div>
-                <div className="saved-rooms__actions">
-                  <button
-                    type="button"
-                    className="btn btn-gold btn-sm"
-                    disabled={!playerName.trim() || !connected}
-                    onClick={() => onJoinRoom(room.code)}
-                  >
-                    Join
+            <li key={room.code} className="saved-rooms__item">
+              {editingCode === room.code ? (
+                <div className="saved-rooms__edit">
+                  <input
+                    className="field-input field-input--code saved-rooms__edit-input"
+                    value={editValue}
+                    onChange={(e) => setEditValue(e.target.value.toUpperCase().slice(0, 4))}
+                    maxLength={4}
+                  />
+                  <button type="button" className="btn btn-gold btn-sm" onClick={saveEdit}>
+                    Save
                   </button>
-                  <button type="button" className="btn btn-outline btn-sm" onClick={() => startEdit(room.code)}>
-                    Edit code
-                  </button>
-                  <button type="button" className="btn btn-danger btn-sm" onClick={() => handleDelete(room.code)}>
-                    Delete
+                  <button type="button" className="btn btn-outline btn-sm" onClick={() => setEditingCode(null)}>
+                    Cancel
                   </button>
                 </div>
-              </>
-            )}
-          </li>
-        ))}
+              ) : (
+                <>
+                  <div className="saved-rooms__info">
+                    <span className="saved-rooms__code">{room.code}</span>
+                    <span className="saved-rooms__meta">
+                      {room.isOwner ? 'Your room' : `Hosted by ${room.hostName}`}
+                      {' · '}
+                      {room.gameCount} game{room.gameCount === 1 ? '' : 's'}
+                    </span>
+                  </div>
+                  <div className="saved-rooms__actions">
+                    <button
+                      type="button"
+                      className="btn btn-gold btn-sm"
+                      disabled={!connected}
+                      onClick={() => onJoinRoom(room.code)}
+                    >
+                      Join
+                    </button>
+                    {room.isOwner && (
+                      <>
+                        <button type="button" className="btn btn-outline btn-sm" onClick={() => startEdit(room.code)}>
+                          Edit code
+                        </button>
+                        <button type="button" className="btn btn-danger btn-sm" onClick={() => handleDelete(room.code)}>
+                          Delete
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </>
+              )}
+            </li>
+          ))}
         </ul>
       )}
     </div>

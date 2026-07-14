@@ -47,6 +47,17 @@ export const OPPONENT_SEATS = [
   { top: '72%', left: '82%' },
 ];
 
+/** Tighter seat ring for phone screens */
+export const OPPONENT_SEATS_MOBILE = [
+  { top: '6%', left: '50%' },
+  { top: '18%', left: '20%' },
+  { top: '18%', left: '80%' },
+  { top: '48%', left: '12%' },
+  { top: '48%', left: '88%' },
+  { top: '64%', left: '22%' },
+  { top: '64%', left: '78%' },
+];
+
 export function nextRank(rank) {
   const idx = RANKS.indexOf(rank);
   return RANKS[(idx + 1) % RANKS.length];
@@ -63,8 +74,13 @@ export function getPlayerColor(playerId, index = 0) {
   return PLAYER_COLORS[hash];
 }
 
-export function getSeatStyle(index, total) {
-  const seat = OPPONENT_SEATS[index % OPPONENT_SEATS.length];
+function pickSeat(index, mobile) {
+  const ring = mobile ? OPPONENT_SEATS_MOBILE : OPPONENT_SEATS;
+  return ring[index % ring.length];
+}
+
+export function getSeatStyle(index, total, mobile = false) {
+  const seat = pickSeat(index, mobile);
   return {
     top: seat.top,
     left: seat.left,
@@ -72,8 +88,8 @@ export function getSeatStyle(index, total) {
   };
 }
 
-export function getTurnHaloStyle(seatIndex) {
-  const seat = OPPONENT_SEATS[seatIndex % OPPONENT_SEATS.length];
+export function getTurnHaloStyle(seatIndex, mobile = false) {
+  const seat = pickSeat(seatIndex, mobile);
   return {
     top: seat.top,
     left: seat.left,
