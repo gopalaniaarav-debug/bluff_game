@@ -1,5 +1,17 @@
 import { createShuffledDeck, dealCards } from './deck.js';
-import { RANKS, isValidRank } from './constants.js';
+import { RANKS, SUITS, isValidRank } from './constants.js';
+
+const RANK_ORDER = Object.fromEntries(RANKS.map((r, i) => [r, i]));
+const SUIT_ORDER = Object.fromEntries(SUITS.map((s, i) => [s, i]));
+
+/** Keep hands in ascending rank order, same ranks grouped (then by suit). */
+export function sortHand(hand) {
+  return [...hand].sort((a, b) => {
+    const rankDiff = (RANK_ORDER[a.rank] ?? 0) - (RANK_ORDER[b.rank] ?? 0);
+    if (rankDiff !== 0) return rankDiff;
+    return (SUIT_ORDER[a.suit] ?? 0) - (SUIT_ORDER[b.suit] ?? 0);
+  });
+}
 
 function findAceOfSpadesHolderIndex(players) {
   for (let i = 0; i < players.length; i++) {
@@ -40,7 +52,7 @@ export function createGameState(players) {
   const gamePlayers = players.map((player, index) => ({
     id: player.id,
     name: player.name,
-    hand: hands[index],
+    hand: sortHand(hands[index]),
   }));
 
   const playerOrder = gamePlayers.map((p) => p.id);
@@ -90,6 +102,7 @@ function resolveBluff(state) {
   const pickupPlayer = state.players.find((p) => p.id === pickupPlayerId);
   const pileSize = state.centralPile.length;
   pickupPlayer.hand.push(...state.centralPile);
+  pickupPlayer.hand = sortHand(pickupPlayer.hand);
 
   const nonPickupPlayerId =
     pickupPlayerId === pendingPlay.playerId
@@ -325,6 +338,57 @@ export function checkWinner(gameState) {
   return emptyHand ? emptyHand.id : null;
 }
 
+/** Remove a player who quit mid-game (>2 players). Returns updated state. */
+export function removePlayerFromGame(gameState, playerId) {
+  const state = structuredClone(gameState);
+  if (state.winner) return state;
+
+  const player = state.players.find((p) => p.id === playerId);
+  if (!player) return state;
+
+  if (player.hand.length > 0) {
+    state.centralPile.push(...player.hand);
+    player.hand = [];
+  }
+
+  if (state.pendingPlay?.playerId === playerId) {
+    state.pendingPlay = null;
+    state.bluffCalls = [];
+    state.phase = state.currentRank ? 'playing' : 'start_rank';
+  } else if (state.phase === 'bluff_window') {
+    state.bluffCalls = state.bluffCalls.filter((c) => c.challengerId !== playerId);
+  }
+
+  const removedOrderIdx = state.playerOrder.indexOf(playerId);
+  state.players = state.players.filter((p) => p.id !== playerId);
+  state.playerOrder = state.playerOrder.filter((id) => id !== playerId);
+
+  if (state.playerOrder.length === 0) return state;
+
+  if (state.playerOrder.length === 1) {
+    state.winner = state.playerOrder[0];
+    return state;
+  }
+
+  if (removedOrderIdx !== -1 && removedOrderIdx < state.turnIndex) {
+    state.turnIndex = Math.max(0, state.turnIndex - 1);
+  } else if (removedOrderIdx === state.turnIndex) {
+    state.turnIndex = state.turnIndex % state.playerOrder.length;
+  }
+  if (state.turnIndex >= state.playerOrder.length) state.turnIndex = 0;
+
+  const winner = checkWinner(state);
+  if (winner) state.winner = winner;
+
+  return state;
+}
+
+export function forfeitWin(gameState, winnerId) {
+  const state = structuredClone(gameState);
+  state.winner = winnerId;
+  return state;
+}
+
 export function getSharedState(gameState) {
   const pending = gameState.pendingPlay;
   const challengeAllowed = pending
@@ -339,6 +403,7 @@ export function getSharedState(gameState) {
     lastDeclaredRank: gameState.lastDeclaredRank,
     phase: gameState.phase,
     pendingPlayPlayerId: pending?.playerId ?? null,
+    pendingPlayCount: pending?.cards.length ?? 0,
     challengeAllowed,
     consecutiveSkips: gameState.consecutiveSkips,
     lastRankEndReason: gameState.lastRankEndReason,

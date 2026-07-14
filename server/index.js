@@ -5,11 +5,14 @@ import cors from 'cors';
 import { setupSocketHandlers, renameActiveRoom, deleteActiveRoom } from './rooms.js';
 import { getScoresForPlayer, getScoresForRoomPlayer, getAllScores } from './db/scores.js';
 import {
-  listSavedRooms,
+  listSavedRoomsForUser,
   renameSavedRoom,
   deleteSavedRoom,
   isValidRoomCode,
 } from './db/rooms.js';
+import { registerUser, loginUser, getUserByToken, revokeSession } from './db/users.js';
+import './db/memberships.js';
+import { requireAuth, extractToken } from './auth.js';
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -25,7 +28,9 @@ function isAllowedOrigin(origin) {
   return (
     /\.ngrok-free\.(dev|app)$/.test(origin) ||
     /\.ngrok\.io$/.test(origin) ||
-    /\.ngrok\.app$/.test(origin)
+    /\.ngrok\.app$/.test(origin) ||
+    origin === 'capacitor://localhost' ||
+    origin === 'http://localhost'
   );
 }
 
@@ -48,33 +53,64 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'healthy' });
 });
 
-app.get('/api/rooms', (_req, res) => {
-  res.json({ rooms: listSavedRooms() });
+app.post('/api/auth/register', (req, res) => {
+  try {
+    const { displayName, password } = req.body;
+    const session = registerUser(displayName, password);
+    res.json(session);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
 });
 
-app.patch('/api/rooms/:code', (req, res) => {
+app.post('/api/auth/login', (req, res) => {
+  try {
+    const { displayName, password } = req.body;
+    const session = loginUser(displayName, password);
+    res.json(session);
+  } catch (err) {
+    res.status(401).json({ error: err.message });
+  }
+});
+
+app.post('/api/auth/logout', (req, res) => {
+  revokeSession(extractToken(req));
+  res.json({ success: true });
+});
+
+app.get('/api/auth/me', (req, res) => {
+  const user = getUserByToken(extractToken(req));
+  if (!user) return res.status(401).json({ error: 'Not logged in' });
+  res.json({ user: { id: user.id, displayName: user.displayName } });
+});
+
+app.get('/api/rooms', requireAuth, (req, res) => {
+  res.json({ rooms: listSavedRoomsForUser(req.user.id) });
+});
+
+app.patch('/api/rooms/:code', requireAuth, (req, res) => {
   try {
     const oldCode = req.params.code?.trim().toUpperCase();
     const newCode = req.body.newCode?.trim().toUpperCase();
     if (!isValidRoomCode(newCode)) {
       return res.status(400).json({ error: 'Code must be 4 letters or numbers' });
     }
-    renameSavedRoom(oldCode, newCode);
+    renameSavedRoom(oldCode, newCode, req.user.id);
     renameActiveRoom(app.locals.io, oldCode, newCode);
     res.json({ code: newCode });
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    res.status(403).json({ error: err.message });
   }
 });
 
-app.delete('/api/rooms/:code', (req, res) => {
+app.delete('/api/rooms/:code', requireAuth, (req, res) => {
   try {
     const code = req.params.code?.trim().toUpperCase();
-    deleteSavedRoom(code);
+    deleteSavedRoom(code, req.user.id);
     deleteActiveRoom(app.locals.io, code);
     res.json({ success: true });
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    res.status(403).json({ error: err.message });
   }
 });
 

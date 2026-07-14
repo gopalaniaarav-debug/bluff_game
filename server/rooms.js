@@ -1,8 +1,33 @@
-import { createGameState, getSharedState, getPlayerHand, playCards, registerBluffCall, resolveBluffCalls, passBluffWindow, skipTurn } from './game/gameState.js';
+import { randomUUID } from 'crypto';
+import {
+  createGameState,
+  getSharedState,
+  getPlayerHand,
+  playCards,
+  registerBluffCall,
+  resolveBluffCalls,
+  passBluffWindow,
+  skipTurn,
+  removePlayerFromGame,
+  forfeitWin,
+} from './game/gameState.js';
 import { saveGameResult } from './db/scores.js';
-import { isSavedRoomCode, saveSavedRoom } from './db/rooms.js';
+import { isSavedRoomCode, saveSavedRoom, getSavedRoomOwner } from './db/rooms.js';
+import { recordRoomMembership } from './db/memberships.js';
+import { verifySocketUser } from './auth.js';
+import {
+  decideOpening,
+  decideStartRank,
+  decidePlaying,
+  decideChallenge,
+  createRankMemory,
+} from './game/aiBot.js';
 
-const RECONNECT_TIMEOUT_MS = 2 * 60 * 1000;
+const RECONNECT_TIMEOUT_MS = 15 * 60 * 1000;
+
+const AI_NAMES = ['Botello', 'Sir Bluff', 'Ada Lie', 'Nova', 'Rex'];
+const AI_MIN_DELAY_MS = 800;
+const AI_MAX_DELAY_MS = 1700;
 
 const rooms = new Map();
 
@@ -19,12 +44,15 @@ function emitGameWon(io, room) {
   const moveCount = room.moveCount ?? 0;
   const playerNames = room.players.map((p) => p.name);
 
-  saveGameResult({
-    roomCode: room.code,
-    winnerName: winner.name,
-    moveCount,
-    players: playerNames,
-  });
+  // AI practice games are ephemeral — don't clutter the persisted score history.
+  if (!room.isAIGame) {
+    saveGameResult({
+      roomCode: room.code,
+      winnerName: winner.name,
+      moveCount,
+      players: playerNames,
+    });
+  }
 
   io.to(room.code).emit('gameWon', {
     winnerId: winner.id,
@@ -43,8 +71,10 @@ function generateRoomCode() {
 }
 
 function bootstrapRoomFromSaved(code) {
+  const saved = getSavedRoomOwner(code);
   return {
     code,
+    ownerUserId: saved?.owner_user_id ?? null,
     hostId: null,
     players: [],
     gameStarted: false,
@@ -53,6 +83,105 @@ function bootstrapRoomFromSaved(code) {
     chatHistory: [],
     moveCount: 0,
   };
+}
+
+function resetRoomToLobby(room) {
+  room.gameStarted = false;
+  room.gameState = null;
+  room.bluffPasses = null;
+  room.moveCount = 0;
+  room.players = [];
+  room.hostId = null;
+  room.chatHistory = [];
+}
+
+function resetRoomIfEmpty(io, room) {
+  if (room.players.length > 0) return;
+  const bootstrapped = bootstrapRoomFromSaved(room.code);
+  rooms.set(room.code, bootstrapped);
+}
+
+/**
+ * Creator/owner is always host when present. Never promote a random joiner.
+ * If the owner is offline, hostId stays null (nobody else can start/rematch).
+ */
+function syncRoomHost(room) {
+  if (room.isAIGame) return;
+
+  for (const p of room.players) p.isHost = false;
+
+  if (room.ownerUserId != null) {
+    const owner = room.players.find((p) => p.userId === room.ownerUserId);
+    if (owner) {
+      room.hostId = owner.id;
+      owner.isHost = true;
+    } else {
+      room.hostId = null;
+    }
+    return;
+  }
+
+  // Legacy rooms without an owner: keep current host if still seated, else none.
+  const current = room.players.find((p) => p.id === room.hostId);
+  if (current) {
+    current.isHost = true;
+  } else {
+    room.hostId = null;
+  }
+}
+
+function removePlayerFromRoom(room, player) {
+  if (player.reconnectTimer) {
+    clearTimeout(player.reconnectTimer);
+    player.reconnectTimer = null;
+  }
+  room.players = room.players.filter((p) => p.id !== player.id);
+  syncRoomHost(room);
+}
+
+function findReconnectSlot(room, user, playerId) {
+  if (playerId) {
+    const byId = room.players.find((p) => p.id === playerId && p.userId === user.id);
+    if (byId) return byId;
+  }
+  return room.players.find((p) => p.userId === user.id) ?? null;
+}
+
+function isGameInProgress(room) {
+  return Boolean(room.gameStarted && room.gameState && !room.gameState.winner);
+}
+
+function finishJoin(io, socket, room, player, code, reconnected, callback) {
+  attachPlayerSocket(socket, room, player, code);
+  syncRoomHost(room);
+  recordRoomMembership(player.userId, code);
+  callback?.({ roomCode: code, playerId: player.id, reconnected });
+  emitRoomUpdate(io, room);
+  if (reconnected) {
+    emitGameState(io, room, socket.id);
+    emitChatHistory(socket, room);
+    io.to(code).emit('playerReconnected', { playerId: player.id, name: player.name });
+  }
+}
+
+function attachPlayerSocket(socket, room, player, code) {
+  player.connected = true;
+  player.socketId = socket.id;
+  player.disconnectedAt = null;
+  if (player.reconnectTimer) {
+    clearTimeout(player.reconnectTimer);
+    player.reconnectTimer = null;
+  }
+  socket.join(code);
+  socket.data.roomCode = code;
+  socket.data.playerId = player.id;
+  socket.data.userId = player.userId;
+}
+
+function emitChatHistory(socket, room) {
+  for (const msg of room.chatHistory) {
+    socket.emit('chatMessage', msg);
+  }
 }
 
 export function renameActiveRoom(io, oldCode, newCode) {
@@ -79,6 +208,7 @@ export function deleteActiveRoom(io, code) {
   const room = rooms.get(code);
   if (!room) return;
 
+  clearAITimer(room);
   io.to(code).emit('roomDeleted', { roomCode: code });
 
   for (const player of room.players) {
@@ -136,6 +266,14 @@ function findPlayerBySocket(room, socketId) {
   return room.players.find((p) => p.socketId === socketId);
 }
 
+function findPlayerForSocket(room, socket) {
+  return (
+    findPlayerBySocket(room, socket.id) ??
+    room.players.find((p) => p.id === socket.data.playerId) ??
+    null
+  );
+}
+
 function findPlayerByName(room, name) {
   return room.players.find((p) => p.name.toLowerCase() === name.toLowerCase());
 }
@@ -149,6 +287,19 @@ function scheduleReconnectExpiry(io, room, player) {
     if (idx === -1 || currentRoom.players[idx].connected) return;
 
     currentRoom.players.splice(idx, 1);
+
+    if (currentRoom.gameStarted && currentRoom.gameState) {
+      const remaining = currentRoom.players.filter((p) => p.connected);
+      if (remaining.length === 1) {
+        currentRoom.gameState = forfeitWin(currentRoom.gameState, remaining[0].id);
+        emitGameWon(io, currentRoom);
+      } else if (remaining.length > 1) {
+        currentRoom.gameState = removePlayerFromGame(currentRoom.gameState, player.id);
+        emitGameState(io, currentRoom);
+        if (currentRoom.gameState.winner) emitGameWon(io, currentRoom);
+      }
+    }
+
     io.to(currentRoom.code).emit('playerRemoved', {
       playerId: player.id,
       name: player.name,
@@ -156,6 +307,7 @@ function scheduleReconnectExpiry(io, room, player) {
     });
     emitRoomUpdate(io, currentRoom);
     if (currentRoom.gameStarted) emitGameState(io, currentRoom);
+    resetRoomIfEmpty(io, currentRoom);
   }, RECONNECT_TIMEOUT_MS);
 }
 
@@ -222,18 +374,175 @@ function tryCloseBluffWindow(io, room) {
   return true;
 }
 
+// ── AI opponent driver ──
+
+function clearAITimer(room) {
+  if (room.aiTimer) {
+    clearTimeout(room.aiTimer);
+    room.aiTimer = null;
+  }
+}
+
+function getDeckCount(room) {
+  return room.players.length > 6 ? 2 : 1;
+}
+
+/** Which AI (if any) should act right now, or null if we're waiting on a human. */
+function pickAIActor(room) {
+  const state = room.gameState;
+  if (!state || state.winner) return null;
+
+  if (state.phase === 'bluff_window' && state.pendingPlay) {
+    const pendingId = state.pendingPlay.playerId;
+    const passed = room.bluffPasses ?? new Set();
+    return (
+      room.players.find(
+        (p) =>
+          p.isAI &&
+          p.id !== pendingId &&
+          state.playerOrder.includes(p.id) &&
+          !passed.has(p.id)
+      ) ?? null
+    );
+  }
+
+  if (['opening', 'playing', 'start_rank'].includes(state.phase)) {
+    const currentId = state.playerOrder[state.turnIndex];
+    const player = room.players.find((p) => p.id === currentId);
+    return player?.isAI ? player : null;
+  }
+
+  return null;
+}
+
+function applyAIPlay(io, room, actor, cardIndexes, declaredRank) {
+  incrementMove(room);
+  room.gameState = playCards(room.gameState, actor.id, cardIndexes, declaredRank);
+  emitGameState(io, room);
+  if (room.gameState.phase === 'bluff_window') resetBluffWindow(room);
+  if (room.gameState.winner) emitGameWon(io, room);
+}
+
+function applyAISkip(io, room, actor) {
+  incrementMove(room);
+  const prevReason = room.gameState.lastRankEndReason;
+  room.gameState = skipTurn(room.gameState, actor.id);
+  emitGameState(io, room);
+
+  if (room.gameState.lastRankEndReason === 'all_skip' && prevReason !== 'all_skip') {
+    const starterId = room.gameState.playerOrder[room.gameState.turnIndex];
+    io.to(room.code).emit('rankEnded', { reason: 'all_skip', nextStarterId: starterId });
+  }
+  if (room.gameState.winner) emitGameWon(io, room);
+}
+
+function runAIAction(io, room, actor) {
+  const state = room.gameState;
+  const hand = getPlayerHand(state, actor.id);
+
+  if (state.phase === 'bluff_window' && state.pendingPlay) {
+    const pending = state.pendingPlay;
+    const challengeAllowed = !(pending.isOpeningPlay && pending.cards.length === 1);
+    const opponent = state.players.find((p) => p.id === pending.playerId);
+    const opponentHandSizeBeforePlay =
+      (opponent?.hand?.length ?? 0) + pending.cards.length;
+    const call = decideChallenge({
+      declaredRank: pending.declaredRank,
+      claimedCount: pending.cards.length,
+      aiHand: hand,
+      opponentHandSizeBeforePlay,
+      challengeAllowed,
+      deckCount: getDeckCount(room),
+    });
+
+    if (call) {
+      room.gameState = registerBluffCall(state, actor.id);
+      resolveBluffChallenge(io, room);
+    } else {
+      if (!room.bluffPasses) room.bluffPasses = new Set();
+      room.bluffPasses.add(actor.id);
+      emitGameState(io, room);
+      tryCloseBluffWindow(io, room);
+    }
+    return;
+  }
+
+  if (state.phase === 'opening') {
+    const { cardIndexes, declaredRank } = decideOpening(hand);
+    applyAIPlay(io, room, actor, cardIndexes, declaredRank);
+    return;
+  }
+
+  if (state.phase === 'start_rank') {
+    if (!room.aiRankMemory) room.aiRankMemory = {};
+    if (!room.aiRankMemory[actor.id]) {
+      room.aiRankMemory[actor.id] = createRankMemory();
+    }
+    const { cardIndexes, declaredRank, rankMemory } = decideStartRank(
+      hand,
+      room.aiRankMemory[actor.id]
+    );
+    room.aiRankMemory[actor.id] = rankMemory;
+    applyAIPlay(io, room, actor, cardIndexes, declaredRank);
+    return;
+  }
+
+  if (state.phase === 'playing') {
+    const decision = decidePlaying(hand, state.currentRank);
+    if (decision.action === 'skip') {
+      applyAISkip(io, room, actor);
+    } else {
+      applyAIPlay(io, room, actor, decision.cardIndexes, decision.declaredRank);
+    }
+  }
+}
+
+/** Advance the game by having AI players act (with human-like delays) until it's a human's turn. */
+function scheduleAI(io, room) {
+  if (!room?.isAIGame || room.aiTimer) return;
+  if (!pickAIActor(room)) return;
+
+  const delay = AI_MIN_DELAY_MS + Math.floor(Math.random() * (AI_MAX_DELAY_MS - AI_MIN_DELAY_MS));
+  room.aiTimer = setTimeout(() => {
+    room.aiTimer = null;
+    const current = rooms.get(room.code);
+    if (!current || !current.isAIGame) return;
+    if (!current.gameState || current.gameState.winner) return;
+
+    const actor = pickAIActor(current);
+    if (!actor) return;
+
+    try {
+      runAIAction(io, current, actor);
+    } catch (err) {
+      console.error(`AI action error in room ${current.code}:`, err.message);
+      // If the AI produced an illegal move, fall back to a skip so the game never stalls.
+      try {
+        if (current.gameState?.phase === 'playing') {
+          applyAISkip(io, current, actor);
+        }
+      } catch {
+        /* give up on this tick; next human action can nudge the game */
+      }
+    }
+
+    scheduleAI(io, current);
+  }, delay);
+}
+
 export function setupSocketHandlers(io) {
   io.on('connection', (socket) => {
     console.log(`Client connected: ${socket.id}`);
 
-    socket.on('createRoom', ({ playerName }, callback) => {
-      const name = playerName?.trim();
-      if (!name) return callback?.({ error: 'Name is required' });
+    socket.on('createRoom', ({ authToken }, callback) => {
+      const user = verifySocketUser(authToken);
+      if (!user) return callback?.({ error: 'Login required' });
 
       const code = generateRoomCode();
       const player = {
-        id: socket.id,
-        name,
+        id: randomUUID(),
+        userId: user.id,
+        name: user.displayName,
         socketId: socket.id,
         isHost: true,
         connected: true,
@@ -241,7 +550,8 @@ export function setupSocketHandlers(io) {
 
       const room = {
         code,
-        hostId: socket.id,
+        ownerUserId: user.id,
+        hostId: player.id,
         players: [player],
         gameStarted: false,
         gameState: null,
@@ -251,53 +561,124 @@ export function setupSocketHandlers(io) {
       };
 
       rooms.set(code, room);
-      saveSavedRoom(code, name);
-      socket.join(code);
-      socket.data.roomCode = code;
-      socket.data.playerId = player.id;
+      saveSavedRoom(code, user.displayName, user.id);
+      recordRoomMembership(user.id, code);
+      attachPlayerSocket(socket, room, player, code);
 
-      callback?.({ roomCode: code });
+      callback?.({ roomCode: code, playerId: player.id });
       emitRoomUpdate(io, room);
     });
 
-    socket.on('joinRoom', ({ roomCode, playerName }, callback) => {
-      const code = roomCode?.trim().toUpperCase();
-      const name = playerName?.trim();
-      if (!code || !name) return callback?.({ error: 'Room code and name are required' });
+    socket.on('startAIGame', ({ authToken, aiCount } = {}, callback) => {
+      const user = verifySocketUser(authToken);
+      if (!user) return callback?.({ error: 'Login required' });
 
-      const room = rooms.get(code);
-      if (!room) {
+      const count = Math.min(Math.max(Number(aiCount) || 1, 1), 5);
+      const code = generateRoomCode();
+
+      const human = {
+        id: randomUUID(),
+        userId: user.id,
+        name: user.displayName,
+        socketId: socket.id,
+        isHost: true,
+        connected: true,
+      };
+
+      const aiPlayers = Array.from({ length: count }, (_, i) => ({
+        id: randomUUID(),
+        userId: null,
+        name: AI_NAMES[i % AI_NAMES.length],
+        socketId: null,
+        isHost: false,
+        isAI: true,
+        connected: true,
+      }));
+
+      const players = [human, ...aiPlayers];
+      const room = {
+        code,
+        hostId: human.id,
+        players,
+        gameStarted: false,
+        gameState: null,
+        bluffPasses: null,
+        chatHistory: [],
+        moveCount: 0,
+        isAIGame: true,
+        aiRankMemory: {},
+      };
+
+      rooms.set(code, room);
+      attachPlayerSocket(socket, room, human, code);
+
+      try {
+        room.gameState = createGameState(players.map((p) => ({ id: p.id, name: p.name })));
+        room.gameStarted = true;
+        room.bluffPasses = null;
+        room.moveCount = 0;
+        callback?.({ roomCode: code, playerId: human.id });
+        emitRoomUpdate(io, room);
+        emitGameState(io, room);
+        scheduleAI(io, room);
+      } catch (err) {
+        rooms.delete(code);
+        callback?.({ error: err.message });
+      }
+    });
+
+    socket.on('joinRoom', ({ roomCode, authToken, playerId }, callback) => {
+      const user = verifySocketUser(authToken);
+      if (!user) return callback?.({ error: 'Login required' });
+
+      const code = roomCode?.trim().toUpperCase();
+      if (!code) return callback?.({ error: 'Room code is required' });
+
+      if (!rooms.get(code)) {
         if (!isSavedRoomCode(code)) {
           return callback?.({ error: 'Room not found' });
         }
-        const bootstrapped = bootstrapRoomFromSaved(code);
-        rooms.set(code, bootstrapped);
+        rooms.set(code, bootstrapRoomFromSaved(code));
       }
 
       const activeRoom = rooms.get(code);
-      if (activeRoom.gameStarted) {
-        const existing = findPlayerByName(activeRoom, name);
-        if (existing && !existing.connected) {
-          existing.connected = true;
-          existing.socketId = socket.id;
-          if (existing.reconnectTimer) {
-            clearTimeout(existing.reconnectTimer);
-            existing.reconnectTimer = null;
-          }
-          socket.join(code);
-          socket.data.roomCode = code;
-          socket.data.playerId = existing.id;
-          callback?.({ roomCode: code, reconnected: true });
-          emitRoomUpdate(io, activeRoom);
-          emitGameState(io, activeRoom, socket.id);
-          io.to(code).emit('playerReconnected', { playerId: existing.id, name: existing.name });
-          return;
-        }
-        return callback?.({ error: 'Game already in progress' });
+
+      // Repair rooms that were live before owner tracking existed.
+      if (activeRoom.ownerUserId == null) {
+        const saved = getSavedRoomOwner(code);
+        if (saved?.owner_user_id != null) activeRoom.ownerUserId = saved.owner_user_id;
       }
 
-      if (activeRoom.players.some((p) => p.name.toLowerCase() === name.toLowerCase() && p.connected)) {
-        return callback?.({ error: 'Name already taken in this room' });
+      const onThisSocket = activeRoom.players.find((p) => p.socketId === socket.id);
+      if (onThisSocket) {
+        return finishJoin(
+          io,
+          socket,
+          activeRoom,
+          onThisSocket,
+          code,
+          isGameInProgress(activeRoom),
+          callback
+        );
+      }
+
+      const existingSlot = findReconnectSlot(activeRoom, user, playerId);
+      if (existingSlot) {
+        return finishJoin(
+          io,
+          socket,
+          activeRoom,
+          existingSlot,
+          code,
+          isGameInProgress(activeRoom),
+          callback
+        );
+      }
+
+      if (isGameInProgress(activeRoom)) {
+        return callback?.({
+          error: 'Game in progress — only players already in this game can rejoin until the round ends',
+        });
       }
 
       if (activeRoom.players.length >= 8) {
@@ -305,24 +686,95 @@ export function setupSocketHandlers(io) {
       }
 
       const player = {
-        id: socket.id,
-        name,
+        id: randomUUID(),
+        userId: user.id,
+        name: user.displayName,
         socketId: socket.id,
-        isHost: activeRoom.players.length === 0,
+        isHost: false,
         connected: true,
       };
 
-      if (activeRoom.players.length === 0) {
-        activeRoom.hostId = player.id;
+      activeRoom.players.push(player);
+      finishJoin(io, socket, activeRoom, player, code, false, callback);
+    });
+
+    socket.on('quitGame', (callback) => {
+      const room = rooms.get(socket.data.roomCode);
+      if (!room) return callback?.({ error: 'Not in a room' });
+
+      const player = findPlayerForSocket(room, socket);
+      if (!player) return callback?.({ error: 'Player not found' });
+
+      const code = room.code;
+
+      // AI practice rooms are single-player + ephemeral: tear the whole room down.
+      if (room.isAIGame) {
+        clearAITimer(room);
+        socket.leave(code);
+        socket.data.roomCode = null;
+        socket.data.playerId = null;
+        socket.data.userId = null;
+        rooms.delete(code);
+        callback?.({ success: true, left: true });
+        return;
       }
 
-      activeRoom.players.push(player);
-      socket.join(code);
-      socket.data.roomCode = code;
-      socket.data.playerId = player.id;
+      if (room.gameStarted && room.gameState && !room.gameState.winner) {
+        const others = room.players.filter((p) => p.id !== player.id);
 
-      callback?.({ roomCode: code });
-      emitRoomUpdate(io, activeRoom);
+        if (others.length === 1) {
+          const winner = others[0];
+          room.gameState = forfeitWin(room.gameState, winner.id);
+          removePlayerFromRoom(room, player);
+          socket.leave(code);
+          socket.data.roomCode = null;
+          socket.data.playerId = null;
+          emitGameWon(io, room);
+          resetRoomIfEmpty(io, room);
+          callback?.({ success: true, left: true });
+          return;
+        }
+
+        if (others.length >= 1) {
+          room.gameState = removePlayerFromGame(room.gameState, player.id);
+          removePlayerFromRoom(room, player);
+          socket.leave(code);
+          socket.data.roomCode = null;
+          socket.data.playerId = null;
+          io.to(code).emit('playerQuit', { playerId: player.id, name: player.name });
+
+          if (room.gameState.winner) {
+            emitGameWon(io, room);
+          } else {
+            emitGameState(io, room);
+            emitRoomUpdate(io, room);
+            if (room.gameState.phase === 'bluff_window') {
+              tryCloseBluffWindow(io, room);
+            }
+          }
+
+          resetRoomIfEmpty(io, room);
+          callback?.({ success: true, left: true });
+          return;
+        }
+      }
+
+      removePlayerFromRoom(room, player);
+      socket.leave(code);
+      socket.data.roomCode = null;
+      socket.data.playerId = null;
+      socket.data.userId = null;
+
+      if (!room.gameStarted || room.gameState?.winner) {
+        room.gameStarted = false;
+        room.gameState = null;
+        room.bluffPasses = null;
+      }
+
+      io.to(code).emit('playerQuit', { playerId: player.id, name: player.name });
+      resetRoomIfEmpty(io, room);
+      if (room.players.length > 0) emitRoomUpdate(io, room);
+      callback?.({ success: true, left: true });
     });
 
     socket.on('startGame', (callback) => {
@@ -345,6 +797,7 @@ export function setupSocketHandlers(io) {
         callback?.({ success: true });
         emitRoomUpdate(io, room);
         emitGameState(io, room);
+        scheduleAI(io, room);
       } catch (err) {
         callback?.({ error: err.message });
       }
@@ -380,6 +833,7 @@ export function setupSocketHandlers(io) {
         if (room.gameState.winner) {
           emitGameWon(io, room);
         }
+        scheduleAI(io, room);
       } catch (err) {
         callback?.({ error: err.message });
       }
@@ -393,6 +847,7 @@ export function setupSocketHandlers(io) {
         room.gameState = registerBluffCall(room.gameState, socket.data.playerId);
         resolveBluffChallenge(io, room);
         callback?.({ success: true });
+        scheduleAI(io, room);
       } catch (err) {
         callback?.({ error: err.message });
       }
@@ -418,6 +873,7 @@ export function setupSocketHandlers(io) {
         callback?.({ success: true });
         emitGameState(io, room);
         tryCloseBluffWindow(io, room);
+        scheduleAI(io, room);
       } catch (err) {
         callback?.({ error: err.message });
       }
@@ -445,6 +901,7 @@ export function setupSocketHandlers(io) {
         if (room.gameState.winner) {
           emitGameWon(io, room);
         }
+        scheduleAI(io, room);
       } catch (err) {
         callback?.({ error: err.message });
       }
@@ -485,6 +942,13 @@ export function setupSocketHandlers(io) {
       const player = findPlayerBySocket(room, socket.id);
       if (!player) return;
 
+      // AI practice room: the only human left, so drop the whole room.
+      if (room.isAIGame) {
+        clearAITimer(room);
+        rooms.delete(roomCode);
+        return;
+      }
+
       player.connected = false;
       player.socketId = null;
       player.disconnectedAt = Date.now();
@@ -499,17 +963,9 @@ export function setupSocketHandlers(io) {
           tryCloseBluffWindow(io, room);
         }
       } else {
-        room.players = room.players.filter((p) => p.id !== player.id);
-        if (room.players.length === 0) {
-          room.bluffPasses = null;
-          rooms.delete(roomCode);
-          return;
-        }
-        if (room.hostId === player.id) {
-          room.hostId = room.players[0].id;
-          room.players[0].isHost = true;
-        }
-        emitRoomUpdate(io, room);
+        removePlayerFromRoom(room, player);
+        resetRoomIfEmpty(io, room);
+        if (room.players.length > 0) emitRoomUpdate(io, room);
       }
     });
   });
