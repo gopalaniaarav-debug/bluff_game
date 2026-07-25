@@ -1,3 +1,5 @@
+import { ngrokHeaders } from './socket.js';
+
 const SESSION_KEY = 'bluff_session';
 
 export function loadSession() {
@@ -54,7 +56,7 @@ async function parseJsonResponse(res) {
 export async function apiRegister(displayName, password) {
   const res = await fetch(`${getApiBase()}/api/auth/register`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...ngrokHeaders() },
     body: JSON.stringify({ displayName, password }),
   });
   const data = await parseJsonResponse(res);
@@ -70,7 +72,7 @@ export async function apiRegister(displayName, password) {
 export async function apiLogin(displayName, password) {
   const res = await fetch(`${getApiBase()}/api/auth/login`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...ngrokHeaders() },
     body: JSON.stringify({ displayName, password }),
   });
   const data = await parseJsonResponse(res);
@@ -87,7 +89,7 @@ export async function apiLogout() {
   try {
     await fetch(`${getApiBase()}/api/auth/logout`, {
       method: 'POST',
-      headers: authHeaders(),
+      headers: { ...authHeaders(), ...ngrokHeaders() },
     });
   } catch {
     /* ignore */
@@ -96,7 +98,9 @@ export async function apiLogout() {
 }
 
 export async function apiMe() {
-  const res = await fetch(`${getApiBase()}/api/auth/me`, { headers: authHeaders() });
+  const res = await fetch(`${getApiBase()}/api/auth/me`, {
+    headers: { ...authHeaders(), ...ngrokHeaders() },
+  });
   if (!res.ok) return null;
   const data = await parseJsonResponse(res);
   return data.user;

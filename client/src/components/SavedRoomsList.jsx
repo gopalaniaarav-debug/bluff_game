@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getServerUrl } from '../socket';
+import { getServerUrl, ngrokHeaders } from '../socket';
 import { authHeaders } from '../auth';
 
 export default function SavedRoomsList({
@@ -15,7 +15,7 @@ export default function SavedRoomsList({
 
   const loadRooms = () => {
     setLoading(true);
-    fetch(`${getServerUrl()}/api/rooms`, { headers: authHeaders() })
+    fetch(`${getServerUrl()}/api/rooms`, { headers: { ...authHeaders(), ...ngrokHeaders() } })
       .then((r) => {
         if (r.status === 401) return { rooms: [] };
         return r.json();
@@ -34,7 +34,7 @@ export default function SavedRoomsList({
     setError('');
     const res = await fetch(`${getServerUrl()}/api/rooms/${code}`, {
       method: 'DELETE',
-      headers: authHeaders(),
+      headers: { ...authHeaders(), ...ngrokHeaders() },
     });
     const data = await res.json();
     if (!res.ok) {
@@ -59,7 +59,7 @@ export default function SavedRoomsList({
     setError('');
     const res = await fetch(`${getServerUrl()}/api/rooms/${editingCode}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      headers: { 'Content-Type': 'application/json', ...authHeaders(), ...ngrokHeaders() },
       body: JSON.stringify({ newCode: next }),
     });
     const data = await res.json();

@@ -52,7 +52,7 @@ const RULE_SECTIONS = [
     title: 'Skipping',
     body: [
       'During an active rank round, you may Skip instead of playing.',
-      'If every player at the table skips in a row, the rank ends. The player who made the last skip chooses the next rank and starts that round.',
+      'If every player at the table skips in a row, the rank ends. The player who played the last card chooses the next rank and starts that round.',
     ],
   },
   {

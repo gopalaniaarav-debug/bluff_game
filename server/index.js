@@ -29,7 +29,10 @@ function isAllowedOrigin(origin) {
     /\.ngrok-free\.(dev|app)$/.test(origin) ||
     /\.ngrok\.io$/.test(origin) ||
     /\.ngrok\.app$/.test(origin) ||
+    // Capacitor native app WebViews: Android defaults to https://localhost,
+    // iOS defaults to capacitor://localhost.
     origin === 'capacitor://localhost' ||
+    origin === 'https://localhost' ||
     origin === 'http://localhost'
   );
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getServerUrl } from '../socket';
+import { getServerUrl, ngrokHeaders } from '../socket';
 
 function formatDate(ts) {
   return new Date(ts).toLocaleDateString(undefined, {
@@ -26,7 +26,7 @@ export default function ScoresPanel({ playerName, roomCode, refreshKey = 0, clas
     setLoading(true);
 
     const params = new URLSearchParams({ player: name, room });
-    fetch(`${getServerUrl()}/api/scores?${params}`)
+    fetch(`${getServerUrl()}/api/scores?${params}`, { headers: ngrokHeaders() })
       .then((r) => r.json())
       .then((data) => {
         if (!cancelled) setScores(data);
